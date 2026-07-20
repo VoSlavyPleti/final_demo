@@ -24,6 +24,15 @@ def _normalized(text: str) -> str:
     return " ".join(text.split())
 
 
+def _calibration_case(reference: str, case_id: int) -> str:
+    marker = f"CAL-{case_id:02d}"
+    match = re.search(
+        rf"(?ms)^## {re.escape(marker)}\b.*?(?=^## CAL-|\Z)", reference
+    )
+    assert match is not None, f"Missing calibration case {marker}"
+    return _normalized(match.group(0))
+
+
 def test_parse_args_accepts_paths() -> None:
     args = main.parse_args(
         ["--contract", "a.txt", "--matrix", "m.json", "--output", "o.json"]
@@ -101,6 +110,7 @@ def test_prompts_are_thin_and_delegate_methodology_to_memory_and_skill() -> None
     assert "Команды `execute` запускаются из корня workspace" in combined
     assert "соответствующие относительные пути" in combined
     assert "Перед каждым `task` назначь уникальный" in combined
+    assert "assigned_matrix_ids" in combined
     assert "короткий заголовок не является заданием" in combined
     assert "Дождись всех задач" in combined
     assert len(main.SYSTEM_PROMPT + main.USER_PROMPT) < 2_200
@@ -143,6 +153,9 @@ def test_subagent_fragment_combines_static_ownership_with_dynamic_scope() -> Non
     assert "/outputs/working/subagents/<scope>.json" in fragment
     assert "/outputs/working/analysis.json" in fragment
     assert "/outputs/result.json" in fragment
+    assert "assigned_matrix_ids" in fragment
+    assert "groups[].matrix_id" in fragment
+    assert re.search(r"точн\w* (совпад|равенств)", fragment)
     assert "остаются неизменными" in fragment
     assert "разделы 2-3" not in fragment
 
@@ -161,12 +174,80 @@ def test_skill_defines_integrated_matrix_first_workflow() -> None:
     assert "Режим исполнения: проверить до первой записи" in normalized
     assert "это также подтверждается системным сообщением" in normalized
     assert "все упоминания канонических `/outputs/working/analysis.json`, `/outputs/result.json`" in normalized
-    assert "без `completion_status`, общего профиля, `extra_in_contract` и итогового заключения" in normalized
+    assert "В файле отсутствуют `completion_status` и итоговое заключение" in normalized
     assert "Навык применяется в одном из двух режимов" in normalized
-    assert "`{\"scope\": \"<scope>\", \"groups\": [...]}`" in normalized
+    assert "`{\"scope\": \"<scope>\", \"assigned_matrix_ids\": [...], \"groups\": [...]}`" in normalized
     assert "Канонические `/outputs/working/analysis.json` и `/outputs/result.json` ведёт только главный агент" in normalized
     assert "Главный агент дожидается завершения всех назначенных задач" in normalized
     assert "главный агент обязан перепроверить каждую полученную группу" in normalized
+
+
+def test_delegation_contract_uses_exact_matrix_id_sets_and_scratch_schema() -> None:
+    normalized = _normalized(_skill())
+    assert "assigned_matrix_ids" in normalized
+    assert "groups[].matrix_id" in normalized
+    assert "точного равенства мультимножеств" in normalized
+    assert "не пропущен" in normalized
+    assert "не повторён" in normalized
+    for field in (
+        "accepted_contract_items",
+        "uncovered_or_changed_elements",
+        "rejected_weak_candidates",
+        "calibration_case_ids",
+    ):
+        assert field in normalized
+
+
+def test_skill_makes_candidate_acceptance_independent_from_coverage_status() -> None:
+    normalized = _normalized(_skill()).lower()
+    assert re.search(r"(сильный|прямой) частичный аналог", normalized)
+    assert "техническая возможность" in normalized
+    assert "accepted_contract_items" in normalized
+    assert "uncovered_or_changed_elements" in normalized
+    assert "rejected_weak_candidates" in normalized
+    assert re.search(
+        r"`missing_in_contract`[^.]{0,500}пуст",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    assert re.search(
+        r"`deviation`[^.]{0,500}(хотя бы один|непуст)[^.]{0,300}принят",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+
+
+def test_skill_requires_a_contract_residual_inventory() -> None:
+    normalized = _normalized(_skill())
+    assert "contract_inventory" in normalized
+    assert "disposition" in normalized
+    for disposition in (
+        "no_residual",
+        "residual_attached_to_deviation",
+        "extra",
+        "non_substantive",
+    ):
+        assert disposition in normalized
+    assert "кажд" in normalized and "смыслов" in normalized
+    assert "простым вычитанием" in normalized
+
+
+def test_skill_anchors_linked_appendices_and_preserves_source_text() -> None:
+    normalized = _normalized(_skill()).lower()
+    assert "`id: null` оставлен только действительно непривязанному материалу" in normalized
+    assert re.search(
+        r"`locator`.{0,500}(номерн|якор).{0,500}прилож",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    assert re.search(
+        r"`text`.{0,500}(полн|дослов).{0,500}прилож",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    assert "дослов" in normalized
+    assert "без внесённых многоточ" in normalized
+    assert "нормализац" in normalized
 
 
 def test_skill_defines_status_boundaries_and_final_output() -> None:
@@ -203,14 +284,40 @@ def test_skill_defines_status_boundaries_and_final_output() -> None:
 def test_calibration_is_anonymous_and_covers_core_boundaries() -> None:
     reference = _reference("calibration.md")
     normalized = _normalized(reference)
-    assert len(re.findall(r"(?m)^## CAL-", reference)) == 9
-    for case_id in range(1, 10):
+    assert len(re.findall(r"(?m)^## CAL-", reference)) == 10
+    for case_id in range(1, 11):
         assert f"CAL-{case_id:02d}" in reference
     assert "Граница законодательной ссылки" in normalized
     assert "Одинаковое число, разный триггер" in normalized
     assert "Один договорный пункт может участвовать в разных матричных группах" in normalized
     assert "Настоящий extra" in normalized
     assert "презумпцию применимости" in normalized
+
+    partial_boundary = _calibration_case(reference, 3).lower()
+    assert "прям" in partial_boundary and "частич" in partial_boundary
+    assert "техническ" in partial_boundary and "возможност" in partial_boundary
+    assert "deviation" in partial_boundary
+    assert "missing_in_contract" in partial_boundary
+
+    inversion = _calibration_case(reference, 5).lower()
+    assert "инверси" in inversion
+    assert "юридическ" in inversion and "операц" in inversion
+    assert "deviation" in inversion
+
+    residual_extra = _calibration_case(reference, 8).lower()
+    assert "остат" in residual_extra
+    assert "extra_in_contract" in residual_extra
+
+    optional = _calibration_case(reference, 9).lower()
+    assert "optional" in optional
+    assert "аналог" in optional
+    assert "aligned" in optional and "deviation" in optional
+
+    dependency_isolation = _calibration_case(reference, 10).lower()
+    assert "зависим" in dependency_isolation
+    assert "самостоятельн" in dependency_isolation
+    assert "deviation" in dependency_isolation
+    assert "missing_in_contract" in dependency_isolation
     assert not re.search(
         r"(?i)gold|kavkaz|irkutsk|altai|kuzbas|kaluga|\.xlsx|\.txt", reference
     )
