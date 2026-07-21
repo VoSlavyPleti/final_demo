@@ -1,0 +1,1259 @@
+{
+  "completion_status": "complete",
+  "groups": [
+    {
+      "contract_id": "1.1",
+      "contract_locator": "Основной текст, п. 1.1",
+      "matrix_ids": [
+        "3.1",
+        "3.2",
+        "3.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "1.2",
+      "contract_locator": "Основной текст, п. 1.2",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "deviation",
+      "comment": "объем услуг по потребности Заказчика в пределах макс. цены — самостоятельное условие, отсутствующее в матрице 10.1"
+    },
+    {
+      "contract_id": "1.3",
+      "contract_locator": "Основной текст, п. 1.3",
+      "matrix_ids": [
+        "3.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "2.3",
+      "contract_locator": "Основной текст, п. 2.3",
+      "matrix_ids": [
+        "2.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "2.3.1",
+      "contract_locator": "Основной текст, п. 2.3.1",
+      "matrix_ids": [
+        "2.3.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "2.3.2",
+      "contract_locator": "Основной текст, п. 2.3.2",
+      "matrix_ids": [
+        "2.3.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "2.3.3",
+      "contract_locator": "Основной текст, п. 2.3.3",
+      "matrix_ids": [
+        "2.3.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "2.3.4",
+      "contract_locator": "Основной текст, п. 2.3.4",
+      "matrix_ids": [
+        "2.3.4"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "2.3.5",
+      "contract_locator": "Основной текст, п. 2.3.5",
+      "matrix_ids": [
+        "2.3.5"
+      ],
+      "status": "deviation",
+      "comment": "матрица называет систему \"E-invoicing/СФЕРА-Курьер\", контракт оставляет поле незаполненным"
+    },
+    {
+      "contract_id": "2.3.6",
+      "contract_locator": "Основной текст, п. 2.3.6",
+      "matrix_ids": [
+        "2.3.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "2.3.7",
+      "contract_locator": "Основной текст, п. 2.3.7",
+      "matrix_ids": [
+        "2.3.7"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "3.1",
+      "contract_locator": "Основной текст, п. 3.1",
+      "matrix_ids": [
+        "6.21"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "3.1.1",
+      "contract_locator": "Основной текст, п. 3.1.1",
+      "matrix_ids": [
+        "6.1"
+      ],
+      "status": "deviation",
+      "comment": "контракт: цена за единицу в спецификации; матрица 6.1: плата в виде процента от операций — разный механизм ценообразования"
+    },
+    {
+      "contract_id": "3.2",
+      "contract_locator": "Основной текст, п. 3.2",
+      "matrix_ids": [
+        "6.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "3.3",
+      "contract_locator": "Основной текст, п. 3.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "4.1",
+      "contract_locator": "Основной текст, п. 4.1",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "4.2",
+      "contract_locator": "Основной текст, п. 4.2",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "4.3",
+      "contract_locator": "Основной текст, п. 4.3",
+      "matrix_ids": [
+        "2.1",
+        "3.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "4.4",
+      "contract_locator": "Основной текст, п. 4.4",
+      "matrix_ids": [
+        "5.1.13",
+        "6.5"
+      ],
+      "status": "deviation",
+      "comment": "контракт: письменное уведомление о смене счета в 2-дневный срок; матрица 5.1.13: уведомление размещением на сайте — иной способ"
+    },
+    {
+      "contract_id": "4.5",
+      "contract_locator": "Основной текст, п. 4.5",
+      "matrix_ids": [
+        "6.5",
+        "6.6"
+      ],
+      "status": "deviation",
+      "comment": "контракт: оплата в течение 7 раб. дней с даты подписания документа о приемке; матрица 6.5/6.6: безакцептное списание — разный механизм оплаты"
+    },
+    {
+      "contract_id": "4.5.1",
+      "contract_locator": "Основной текст, п. 4.5.1",
+      "matrix_ids": [
+        "6.5",
+        "6.6"
+      ],
+      "status": "deviation",
+      "comment": "контракт добавляет предельную дату 30.12.2025 для ноябрьских услуг; матрица не содержит такого ограничения"
+    },
+    {
+      "contract_id": "5.1.1",
+      "contract_locator": "Основной текст, п. 5.1.1",
+      "matrix_ids": [
+        "5.2.3",
+        "5.2.5"
+      ],
+      "status": "deviation",
+      "comment": "контракт: срок установки 5 раб. дней (добавлен); адрес сайта обучения не заполнен (в матрице 5.2.5 указан)"
+    },
+    {
+      "contract_id": "5.1.2",
+      "contract_locator": "Основной текст, п. 5.1.2",
+      "matrix_ids": [
+        "6.2",
+        "6.3"
+      ],
+      "status": "deviation",
+      "comment": "контракт: документ о приемке ежемесячно со ссылкой на пп. 8.3.1-8.3.2; матрица 6.2/6.3: акт/счет с иными сроками — разный механизм"
+    },
+    {
+      "contract_id": "5.1.3",
+      "contract_locator": "Основной текст, п. 5.1.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.1.4",
+      "contract_locator": "Основной текст, п. 5.1.4",
+      "matrix_ids": [
+        "5.2.7"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.1.5",
+      "contract_locator": "Основной текст, п. 5.1.5",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.1.6",
+      "contract_locator": "Основной текст, п. 5.1.6",
+      "matrix_ids": [
+        "5.2.4"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.1.7",
+      "contract_locator": "Основной текст, п. 5.1.7",
+      "matrix_ids": [
+        "5.2.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.1.8",
+      "contract_locator": "Основной текст, п. 5.1.8",
+      "matrix_ids": [
+        "5.2.8"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.1.9",
+      "contract_locator": "Основной текст, п. 5.1.9",
+      "matrix_ids": [
+        "5.2.10"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.1.10",
+      "contract_locator": "Основной текст, п. 5.1.10",
+      "matrix_ids": [
+        "3.2",
+        "5.2.8"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.1",
+      "contract_locator": "Основной текст, п. 5.2.1",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.2.2",
+      "contract_locator": "Основной текст, п. 5.2.2",
+      "matrix_ids": [
+        "5.1.8",
+        "10.2"
+      ],
+      "status": "deviation",
+      "comment": "контракт даёт право только Исполнителю на отказ по 44-ФЗ и ГК РФ; матрица 5.1.8/10.2: иной круг управомоченных лиц"
+    },
+    {
+      "contract_id": "5.2.3",
+      "contract_locator": "Основной текст, п. 5.2.3",
+      "matrix_ids": [
+        "5.1.6"
+      ],
+      "status": "deviation",
+      "comment": "контракт: уведомление за 2 раб. дня до замены; матрица 5.1.6: проверка без условия об уведомлении — добавлено ограничение"
+    },
+    {
+      "contract_id": "5.2.4",
+      "contract_locator": "Основной текст, п. 5.2.4",
+      "matrix_ids": [
+        "5.1.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.5",
+      "contract_locator": "Основной текст, п. 5.2.5",
+      "matrix_ids": [
+        "5.1.11"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.6",
+      "contract_locator": "Основной текст, п. 5.2.6",
+      "matrix_ids": [
+        "5.1.13"
+      ],
+      "status": "deviation",
+      "comment": "контракт: письменное уведомление о смене реквизитов в 3 раб. дня; матрица 5.1.13: размещение на сайте — иной способ"
+    },
+    {
+      "contract_id": "5.2.7",
+      "contract_locator": "Основной текст, п. 5.2.7",
+      "matrix_ids": [
+        "5.1.14"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.8",
+      "contract_locator": "Основной текст, п. 5.2.8",
+      "matrix_ids": [
+        "5.1.16"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9",
+      "contract_locator": "Основной текст, п. 5.2.9",
+      "matrix_ids": [
+        "5.1.8"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.1",
+      "contract_locator": "Основной текст, п. 5.2.9.1",
+      "matrix_ids": [
+        "5.1.8.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.2",
+      "contract_locator": "Основной текст, п. 5.2.9.2",
+      "matrix_ids": [
+        "5.1.8.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.3",
+      "contract_locator": "Основной текст, п. 5.2.9.3",
+      "matrix_ids": [
+        "5.1.8.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.4",
+      "contract_locator": "Основной текст, п. 5.2.9.4",
+      "matrix_ids": [
+        "5.1.8.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.5",
+      "contract_locator": "Основной текст, п. 5.2.9.5",
+      "matrix_ids": [
+        "5.1.8.7"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.6",
+      "contract_locator": "Основной текст, п. 5.2.9.6",
+      "matrix_ids": [
+        "5.1.8.8"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.7",
+      "contract_locator": "Основной текст, п. 5.2.9.7",
+      "matrix_ids": [
+        "5.1.8.9"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.8",
+      "contract_locator": "Основной текст, п. 5.2.9.8",
+      "matrix_ids": [
+        "5.1.8.10"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.9",
+      "contract_locator": "Основной текст, п. 5.2.9.9",
+      "matrix_ids": [
+        "5.1.8.11"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.10",
+      "contract_locator": "Основной текст, п. 5.2.9.10",
+      "matrix_ids": [
+        "5.1.8.12"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.9.11",
+      "contract_locator": "Основной текст, п. 5.2.9.11",
+      "matrix_ids": [
+        "5.1.8.13"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.10",
+      "contract_locator": "Основной текст, п. 5.2.10",
+      "matrix_ids": [
+        "5.1.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.10.1",
+      "contract_locator": "Основной текст, п. 5.2.10.1",
+      "matrix_ids": [
+        "5.1.1.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.10.2",
+      "contract_locator": "Основной текст, п. 5.2.10.2",
+      "matrix_ids": [
+        "5.1.1.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.10.3",
+      "contract_locator": "Основной текст, п. 5.2.10.3",
+      "matrix_ids": [
+        "5.1.1.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.10.4",
+      "contract_locator": "Основной текст, п. 5.2.10.4",
+      "matrix_ids": [
+        "5.1.1.4"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.2.10.5",
+      "contract_locator": "Основной текст, п. 5.2.10.5",
+      "matrix_ids": [
+        "5.1.1.5"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.1",
+      "contract_locator": "Основной текст, п. 5.3.1",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "comment": "контракт: принять услуги по документу о приемке; матрица 6.4: обязанность оплаты — разные обязанности"
+    },
+    {
+      "contract_id": "5.3.2",
+      "contract_locator": "Основной текст, п. 5.3.2",
+      "matrix_ids": [
+        "4.2.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.3",
+      "contract_locator": "Основной текст, п. 5.3.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.3.4",
+      "contract_locator": "Основной текст, п. 5.3.4",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.3.5",
+      "contract_locator": "Основной текст, п. 5.3.5",
+      "matrix_ids": [
+        "7.4"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.6",
+      "contract_locator": "Основной текст, п. 5.3.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.3.7",
+      "contract_locator": "Основной текст, п. 5.3.7",
+      "matrix_ids": [
+        "4.2.4"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.8",
+      "contract_locator": "Основной текст, п. 5.3.8",
+      "matrix_ids": [
+        "4.2.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.9",
+      "contract_locator": "Основной текст, п. 5.3.9",
+      "matrix_ids": [
+        "4.2.7"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.10",
+      "contract_locator": "Основной текст, п. 5.3.10",
+      "matrix_ids": [
+        "4.2.9"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.11",
+      "contract_locator": "Основной текст, п. 5.3.11",
+      "matrix_ids": [
+        "4.2.10"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.12",
+      "contract_locator": "Основной текст, п. 5.3.12",
+      "matrix_ids": [
+        "4.2.11"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.13",
+      "contract_locator": "Основной текст, п. 5.3.13",
+      "matrix_ids": [
+        "4.2.14"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.14",
+      "contract_locator": "Основной текст, п. 5.3.14",
+      "matrix_ids": [
+        "4.2.15"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.15",
+      "contract_locator": "Основной текст, п. 5.3.15",
+      "matrix_ids": [
+        "4.2.16.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.16",
+      "contract_locator": "Основной текст, п. 5.3.16",
+      "matrix_ids": [
+        "4.2.18"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.17",
+      "contract_locator": "Основной текст, п. 5.3.17",
+      "matrix_ids": [
+        "4.2.19"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.18.1",
+      "contract_locator": "Основной текст, п. 5.3.18.1",
+      "matrix_ids": [
+        "4.2.20.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.18.2",
+      "contract_locator": "Основной текст, п. 5.3.18.2",
+      "matrix_ids": [
+        "4.2.20.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.18.3",
+      "contract_locator": "Основной текст, п. 5.3.18.3",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.20.4",
+      "contract_locator": "Основной текст, п. 5.3.20.4",
+      "matrix_ids": [
+        "4.2.20.5"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.18.5",
+      "contract_locator": "Основной текст, п. 5.3.18.5",
+      "matrix_ids": [
+        "4.2.20.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.19",
+      "contract_locator": "Основной текст, п. 5.3.19",
+      "matrix_ids": [
+        "4.2.13"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.3.20",
+      "contract_locator": "Основной текст, п. 5.3.20",
+      "matrix_ids": [
+        "4.2.16"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.4.1",
+      "contract_locator": "Основной текст, п. 5.4.1",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.4.2",
+      "contract_locator": "Основной текст, п. 5.4.2",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "comment": "контракт: отказать в приемке при ненадлежащем качестве; матрица 6.4: обязанность оплаты — не корреспондирующие положения"
+    },
+    {
+      "contract_id": "5.4.3",
+      "contract_locator": "Основной текст, п. 5.4.3",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.4.4",
+      "contract_locator": "Основной текст, п. 5.4.4",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "5.4.5",
+      "contract_locator": "Основной текст, п. 5.4.5",
+      "matrix_ids": [
+        "4.1.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.5",
+      "contract_locator": "Основной текст, п. 5.5",
+      "matrix_ids": [
+        "4.2.11"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.6",
+      "contract_locator": "Основной текст, п. 5.6",
+      "matrix_ids": [
+        "4.2.20.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.7",
+      "contract_locator": "Основной текст, п. 5.7",
+      "matrix_ids": [
+        "4.2.20.7",
+        "5.1.1.6"
+      ],
+      "status": "deviation",
+      "comment": "контракт: фиксированные штрафы 10 000/25 000 руб. за терминал; матрица 4.2.20.7/5.1.1.6: механизм удержания без фиксированной суммы"
+    },
+    {
+      "contract_id": "5.9",
+      "contract_locator": "Основной текст, п. 5.9",
+      "matrix_ids": [
+        "4.1.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "5.10",
+      "contract_locator": "Основной текст, п. 5.10",
+      "matrix_ids": [
+        "4.2.20.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "6.1",
+      "contract_locator": "Основной текст, п. 6.1",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.1",
+      "contract_locator": "Основной текст, п. 7.1",
+      "matrix_ids": [
+        "7.1",
+        "7.3",
+        "7.7"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.2",
+      "contract_locator": "Основной текст, п. 7.2",
+      "matrix_ids": [
+        "7.2"
+      ],
+      "status": "deviation",
+      "comment": "контракт: пеня Заказчику за просрочку; матрица 7.2: фиксированные штрафы Предприятию — разный механизм ответственности"
+    },
+    {
+      "contract_id": "7.3",
+      "contract_locator": "Основной текст, п. 7.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "7.4",
+      "contract_locator": "Основной текст, п. 7.4",
+      "matrix_ids": [
+        "7.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.4.1",
+      "contract_locator": "Основной текст, п. 7.4.1",
+      "matrix_ids": [
+        "7.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.5",
+      "contract_locator": "Основной текст, п. 7.5",
+      "matrix_ids": [
+        "7.4"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.6",
+      "contract_locator": "Основной текст, п. 7.6",
+      "matrix_ids": [
+        "7.4"
+      ],
+      "status": "deviation",
+      "comment": "контракт: пеня 1/300 ставки ЦБ от цены контракта; матрица 7.4: требование уплаты неустоек без детализации расчета пени"
+    },
+    {
+      "contract_id": "7.7",
+      "contract_locator": "Основной текст, п. 7.7",
+      "matrix_ids": [
+        "7.5"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.7.1",
+      "contract_locator": "Основной текст, п. 7.7.1",
+      "matrix_ids": [
+        "7.5"
+      ],
+      "status": "deviation",
+      "comment": "контракт: проценты от цены контракта по шкале 10%/5%/1%/...; матрица 7.5: иная шкала или механизм"
+    },
+    {
+      "contract_id": "7.7.2",
+      "contract_locator": "Основной текст, п. 7.7.2",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "7.7.3",
+      "contract_locator": "Основной текст, п. 7.7.3",
+      "matrix_ids": [
+        "7.6"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.8",
+      "contract_locator": "Основной текст, п. 7.8",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "7.9",
+      "contract_locator": "Основной текст, п. 7.9",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "7.10",
+      "contract_locator": "Основной текст, п. 7.10",
+      "matrix_ids": [
+        "7.7"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.11",
+      "contract_locator": "Основной текст, п. 7.11",
+      "matrix_ids": [
+        "7.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "7.12",
+      "contract_locator": "Основной текст, п. 7.12",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.1",
+      "contract_locator": "Основной текст, п. 8.1",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.2",
+      "contract_locator": "Основной текст, п. 8.2",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.3.1",
+      "contract_locator": "Основной текст, п. 8.3.1",
+      "matrix_ids": [
+        "6.2",
+        "6.3"
+      ],
+      "status": "deviation",
+      "comment": "контракт: документ о приемке в ЕИС не позднее 10 раб. дня; матрица 6.2/6.3: акт/счет с иными сроками и предметом"
+    },
+    {
+      "contract_id": "8.3.2",
+      "contract_locator": "Основной текст, п. 8.3.2",
+      "matrix_ids": [
+        "6.2",
+        "6.3"
+      ],
+      "status": "deviation",
+      "comment": "контракт: приложения к документу о приемке; матрица 6.2/6.3: иной состав документов"
+    },
+    {
+      "contract_id": "8.4",
+      "contract_locator": "Основной текст, п. 8.4",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.5.1",
+      "contract_locator": "Основной текст, п. 8.5.1",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "comment": "контракт: 10 раб. дней на подписание/отказ в ЕИС; матрица 6.4: оплата до 25 числа — разные правоотношения"
+    },
+    {
+      "contract_id": "8.5.2",
+      "contract_locator": "Основной текст, п. 8.5.2",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.5.3",
+      "contract_locator": "Основной текст, п. 8.5.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.5.4",
+      "contract_locator": "Основной текст, п. 8.5.4",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.5.5",
+      "contract_locator": "Основной текст, п. 8.5.5",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.5.6",
+      "contract_locator": "Основной текст, п. 8.5.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.5.7",
+      "contract_locator": "Основной текст, п. 8.5.7",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "comment": "контракт: подписание документа о приемке в 10 раб. дней; матрица 6.4: оплата — разные обязанности"
+    },
+    {
+      "contract_id": "8.5.8",
+      "contract_locator": "Основной текст, п. 8.5.8",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.5.9",
+      "contract_locator": "Основной текст, п. 8.5.9",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "comment": "контракт: право устранить причины отказа; матрица 6.4: оплата — разное содержание"
+    },
+    {
+      "contract_id": "8.6",
+      "contract_locator": "Основной текст, п. 8.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.7",
+      "contract_locator": "Основной текст, п. 8.7",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.8",
+      "contract_locator": "Основной текст, п. 8.8",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.9",
+      "contract_locator": "Основной текст, п. 8.9",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.10",
+      "contract_locator": "Основной текст, п. 8.10",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "8.11",
+      "contract_locator": "Основной текст, п. 8.11",
+      "matrix_ids": [
+        "6.5",
+        "6.6"
+      ],
+      "status": "deviation",
+      "comment": "контракт: документ о приемке — основание оплаты; матрица 6.5/6.6: безакцептное списание — иной механизм"
+    },
+    {
+      "contract_id": "9.1",
+      "contract_locator": "Основной текст, п. 9.1",
+      "matrix_ids": [
+        "8.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "9.2",
+      "contract_locator": "Основной текст, п. 9.2",
+      "matrix_ids": [
+        "8.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "9.3",
+      "contract_locator": "Основной текст, п. 9.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "10.1",
+      "contract_locator": "Основной текст, п. 10.1",
+      "matrix_ids": [
+        "9.1",
+        "9.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "10.2",
+      "contract_locator": "Основной текст, п. 10.2",
+      "matrix_ids": [
+        "9.3"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "11.1",
+      "contract_locator": "Основной текст, п. 11.1",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "11.2",
+      "contract_locator": "Основной текст, п. 11.2",
+      "matrix_ids": [
+        "11.4"
+      ],
+      "status": "deviation",
+      "comment": "контракт: изменения в письменной форме + уведомление за 2 дня; матрица 11.4: изменения с УКЭП — разный порядок"
+    },
+    {
+      "contract_id": "11.3",
+      "contract_locator": "Основной текст, п. 11.3",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "11.4",
+      "contract_locator": "Основной текст, п. 11.4",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "deviation",
+      "comment": "контракт: только Заказчик вправе отказаться; матрица 10.2: любая сторона — разный круг управомоченных лиц"
+    },
+    {
+      "contract_id": "11.5",
+      "contract_locator": "Основной текст, п. 11.5",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "11.6",
+      "contract_locator": "Основной текст, п. 11.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "11.7",
+      "contract_locator": "Основной текст, п. 11.7",
+      "matrix_ids": [
+        "11.1"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "11.8",
+      "contract_locator": "Основной текст, п. 11.8",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "12.1",
+      "contract_locator": "Основной текст, п. 12.1",
+      "matrix_ids": [
+        "11.9"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "12.2",
+      "contract_locator": "Основной текст, п. 12.2",
+      "matrix_ids": [
+        "11.10"
+      ],
+      "status": "aligned",
+      "comment": ""
+    },
+    {
+      "contract_id": "12.3",
+      "contract_locator": "Основной текст, п. 12.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "comment": "пункт матрицы не назначен"
+    },
+    {
+      "contract_id": "12.4",
+      "contract_locator": "Основной текст, п. 12.4",
+      "matrix_ids": [
+        "2.7"
+      ],
+      "status": "aligned",
+      "comment": ""
+    }
+  ]
+}

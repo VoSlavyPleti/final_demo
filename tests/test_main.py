@@ -1,560 +1,312 @@
-import inspect
+from __future__ import annotations
+
 import json
-import os
 from pathlib import Path
-import re
 import shutil
-from types import SimpleNamespace
+import uuid
 
 import pytest
 
-import llm
 import main
 
 
-def _skill() -> str:
-    return (main.SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
-
-
-def _reference(name: str) -> str:
-    return (main.SKILL_DIR / "references" / name).read_text(encoding="utf-8")
-
-
-def _normalized(text: str) -> str:
-    return " ".join(text.split())
-
-
-def _calibration_case(reference: str, case_id: int) -> str:
-    marker = f"CAL-{case_id:02d}"
-    match = re.search(
-        rf"(?ms)^## {re.escape(marker)}\b.*?(?=^## CAL-|\Z)", reference
-    )
-    assert match is not None, f"Missing calibration case {marker}"
-    return _normalized(match.group(0))
-
-
-def test_parse_args_accepts_paths() -> None:
-    args = main.parse_args(
-        ["--contract", "a.txt", "--matrix", "m.json", "--output", "o.json"]
-    )
-    assert args.contract == Path("a.txt")
-    assert args.matrix == Path("m.json")
-    assert args.output == Path("o.json")
-
-
-def test_prepare_workspace_exposes_memory_inputs_and_only_active_skill(
-    tmp_path: Path,
-) -> None:
+def _inputs(tmp_path: Path) -> tuple[Path, Path]:
     contract = tmp_path / "договор.txt"
     matrix = tmp_path / "матрица.json"
-    contract.write_text("1. Условие", encoding="utf-8")
-    matrix.write_text("[]", encoding="utf-8")
+    contract.write_text("1.1 Банк оказывает услуги.", encoding="utf-8")
+    matrix.write_text(
+        json.dumps(
+            [
+                {
+                    "number": "2.1",
+                    "text": "Банк оказывает услуги.",
+                    "required_type": "mandatory",
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return contract, matrix
 
+
+def test_mapping_prompt_has_fixed_scope_and_working_contract() -> None:
+    prompt = main.MAPPING_SUBAGENT_PROMPT.lower()
+    assert "промежуточную карту юридических аналогов" in prompt
+    assert "contract-oriented" in prompt
+    assert "many-to-many" in prompt
+    assert "/outputs/working/mapping.json" in prompt
+    assert '"mappings"' in prompt
+    assert '"mapped_scope"' in prompt
+    assert '"missing_matrix_ids"' in prompt
+    assert "не определяй применимость" in prompt
+    assert "не присваивает статусы" in prompt
+    assert "каждый пункт матрицы классифицирован ровно как mapped или missing" in prompt
+    assert "/outputs/result.json" not in prompt
+    for forbidden in (
+        "deviation",
+        "missing_in_contract",
+        "extra_in_contract",
+        "contract-group-status",
+    ):
+        assert forbidden not in prompt
+
+
+def test_status_prompt_uses_fixed_mapping_and_its_skill() -> None:
+    prompt = main.STATUS_SUBAGENT_PROMPT.lower()
+    assert "contract-group-status" in prompt
+    assert "/outputs/working/mapping.json" in prompt
+    assert "/outputs/working/status.json" in prompt
+    assert "не меняй mapping" in prompt
+    assert "не формируй итоговое заключение" in prompt
+
+
+def test_orchestrator_prompt_and_skill_define_stage_order() -> None:
+    prompt = main.ORCHESTRATOR_SYSTEM_PROMPT.lower()
+    skill = (main.ORCHESTRATOR_SKILL_SOURCE / "SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    assert "agents.md" in prompt
+    assert "contract-review-orchestration" in prompt
+    assert "subagent `mapping`" in prompt
+    assert "subagent `status`" in prompt
+    assert skill.index("## 1. Mapping") < skill.index("## 2. Status")
+    assert skill.index("## 2. Status") < skill.index("## 3. Conclusion")
+    assert "/outputs/working/mapping.json" in skill
+    assert "/outputs/working/status.json" in skill
+    assert "/outputs/result.json" in skill
+    assert "только пункты из `evaluated_matrix_ids`" in skill
+    assert all(
+        status in skill
+        for status in ("deviation", "missing_in_contract", "extra_in_contract")
+    )
+
+
+def test_status_skill_defines_applicability_and_status_artifact() -> None:
+    skill = (main.STATUS_SKILL_SOURCE / "SKILL.md").read_text(encoding="utf-8")
+    reference = (
+        main.STATUS_SKILL_SOURCE / "references" / "calibration.md"
+    ).read_text(encoding="utf-8")
+    assert "/outputs/working/status.json" in skill
+    assert "mapping неизменяемым" in skill
+    assert all(
+        selector in skill
+        for selector in (
+            "only_for_lot",
+            "only_for_product",
+            "payment_method",
+            "only_for_terminal",
+        )
+    )
+    assert '"matrix_review"' in skill
+    assert '"evaluated_matrix_ids"' in skill
+    assert "references/calibration.md" in skill
+    assert "Калибровочные примеры" in reference
+    for forbidden in ("gold", "KAVKAZ", "Кавказ", ".xlsx"):
+        assert forbidden.casefold() not in reference.casefold()
+
+
+def test_agents_memory_contains_stable_project_policy() -> None:
+    memory = main.AGENT_MEMORY_SOURCE.read_text(encoding="utf-8")
+    assert "предварительный протокол разногласий" in memory
+    assert "Банковская матрица — эталон" in memory
+    assert all(
+        status in memory
+        for status in ("deviation", "missing_in_contract", "extra_in_contract")
+    )
+    assert "Приложения" in memory
+    assert "/outputs/" not in memory
+    assert "mapping → status" not in memory
+
+
+def test_prepare_workspace_installs_memory_skills_and_inputs(tmp_path: Path) -> None:
+    contract, matrix = _inputs(tmp_path)
     workspace, output = main.prepare_workspace(
-        contract, matrix, tmp_path / "out" / "result.json"
+        contract, matrix, tmp_path / "published" / "result.json"
     )
     try:
-        skill_root = workspace / "skills" / "contract-matrix-review"
-        assert (skill_root / "SKILL.md").is_file()
-        assert (skill_root / "references" / "calibration.md").is_file()
-        assert len(list((workspace / "skills").iterdir())) == 1
-        assert (workspace / "AGENTS.md").read_text("utf-8") == (
-            main.AGENTS_FILE.read_text("utf-8")
-        )
-        assert (workspace / "inputs" / "contract.txt").read_text("utf-8") == (
-            "1. Условие"
-        )
-        assert (workspace / "inputs" / "matrix.json").read_text("utf-8") == "[]"
+        assert output == (tmp_path / "published" / "result.json").resolve()
+        assert (workspace / "AGENTS.md").read_bytes() == main.AGENT_MEMORY_SOURCE.read_bytes()
+        assert (workspace / "inputs" / "contract.txt").read_bytes() == contract.read_bytes()
+        assert (workspace / "inputs" / "matrix.json").read_bytes() == matrix.read_bytes()
         assert (workspace / "outputs" / "working").is_dir()
-        assert (workspace / "outputs" / "working" / "subagents").is_dir()
-        assert output == (tmp_path / "out" / "result.json").resolve()
+        orchestration = (
+            workspace
+            / "skills"
+            / "orchestrator"
+            / "contract-review-orchestration"
+            / "SKILL.md"
+        )
+        status = (
+            workspace
+            / "skills"
+            / "status"
+            / "contract-group-status"
+            / "SKILL.md"
+        )
+        calibration = status.parent / "references" / "calibration.md"
+        assert orchestration.is_file()
+        assert status.is_file()
+        assert calibration.is_file()
     finally:
         shutil.rmtree(workspace, ignore_errors=True)
 
 
-def test_prepare_workspace_rejects_invalid_paths(tmp_path: Path) -> None:
-    contract = tmp_path / "contract.docx"
-    matrix = tmp_path / "matrix.json"
-    contract.write_text("text", encoding="utf-8")
-    matrix.write_text("[]", encoding="utf-8")
-    with pytest.raises(ValueError, match=".txt"):
-        main.prepare_workspace(contract, matrix, tmp_path / "result.json")
-
-    contract = contract.with_suffix(".txt")
-    contract.write_text("text", encoding="utf-8")
-    with pytest.raises(ValueError, match="Output must be a .json"):
-        main.prepare_workspace(contract, matrix, tmp_path / "result.txt")
-    with pytest.raises(ValueError, match="must differ"):
-        main.prepare_workspace(contract, matrix, matrix)
-
-
-def test_prompts_are_thin_and_delegate_methodology_to_memory_and_skill() -> None:
-    combined = _normalized(main.SYSTEM_PROMPT + "\n" + main.USER_PROMPT)
-    assert "`/AGENTS.md`" in combined
-    assert "`contract-matrix-review`" in combined
-    assert "/inputs/contract.txt" in combined
-    assert "/inputs/matrix.json" in combined
-    assert "/outputs/result.json" in combined
-    assert "самопроверк" in combined
-    for stale in (
-        "status-adjudication",
-        "matrix_groups",
-        "extra_contract_findings",
-        "uncertainties",
-        "candidate_assessments",
-        "contract_over_matrix",
-    ):
-        assert stale not in combined
-    assert "не создавай и не объявляй завершённый артефакт" in combined
-    assert "/skills/contract-matrix-review/SKILL.md" in combined
-    assert "Команды `execute` запускаются из корня workspace" in combined
-    assert "соответствующие относительные пути" in combined
-    assert "Перед каждым `task` назначь уникальный" in combined
-    assert "assigned_matrix_ids" in combined
-    assert "короткий заголовок не является заданием" in combined
-    assert "Дождись всех задач" in combined
-    assert len(main.SYSTEM_PROMPT + main.USER_PROMPT) < 2_200
-    assert "�" not in combined
-
-
-def test_build_agent_uses_memory_skill_and_general_purpose_prompt_fragment(
-    monkeypatch,
+@pytest.mark.parametrize(
+    ("contract_name", "matrix_name", "output_name", "message"),
+    [
+        ("contract.docx", "matrix.json", "result.json", "Contract must be a .txt"),
+        ("contract.txt", "matrix.txt", "result.json", "Matrix must be a .json"),
+        ("contract.txt", "matrix.json", "result.txt", "Output must be a .json"),
+    ],
+)
+def test_prepare_workspace_validates_extensions(
+    tmp_path: Path,
+    contract_name: str,
+    matrix_name: str,
+    output_name: str,
+    message: str,
 ) -> None:
-    calls: list[dict] = []
+    contract = tmp_path / contract_name
+    matrix = tmp_path / matrix_name
+    contract.write_text("x", encoding="utf-8")
+    matrix.write_text("[]", encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        main.prepare_workspace(contract, matrix, tmp_path / output_name)
+
+
+def test_build_agent_registers_two_specialists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+    registrations: list[tuple[str, object]] = []
+
+    class FakeModel:
+        model_name = "deepseek-v4-pro"
+
+    model = FakeModel()
 
     def fake_create_deep_agent(**kwargs):
-        calls.append(kwargs)
+        captured.update(kwargs)
         return object()
 
     monkeypatch.setattr(main, "create_deep_agent", fake_create_deep_agent)
-    monkeypatch.setattr(main, "get_llm", lambda: "model")
-
-    assert main.build_agent(object()) is not None
-    assert len(calls) == 1
-    assert calls[0]["skills"] == ["/skills/"]
-    assert calls[0]["memory"] == ["/AGENTS.md"]
-    assert "tools" not in calls[0]
-    assert len(calls[0]["subagents"]) == 1
-    subagent = calls[0]["subagents"][0]
-    assert subagent["name"] == "general-purpose"
-    assert subagent["system_prompt"] == main.SUBAGENT_PROMPT_FRAGMENT
-    assert subagent["skills"] == ["/skills/"]
-    assert "tools" not in subagent
-    assert "model" not in subagent
-    assert "interrupt_on" not in calls[0]
-    assert "permissions" not in calls[0]
-
-
-def test_subagent_fragment_combines_static_ownership_with_dynamic_scope() -> None:
-    fragment = _normalized(main.SUBAGENT_PROMPT_FRAGMENT)
-    assert "делегированный `general-purpose` сабагент" in fragment
-    assert "динамическом задании вызывающего агента" in fragment
-    assert "/AGENTS.md" in fragment
-    assert "/outputs/working/subagents/<scope>.json" in fragment
-    assert "/outputs/working/analysis.json" in fragment
-    assert "/outputs/result.json" in fragment
-    assert "assigned_matrix_ids" in fragment
-    assert "groups[].matrix_id" in fragment
-    assert re.search(r"точн\w* (совпад|равенств)", fragment)
-    assert "остаются неизменными" in fragment
-    assert "разделы 2-3" not in fragment
-
-
-def test_skill_defines_integrated_matrix_first_workflow() -> None:
-    normalized = _normalized(_skill())
-    assert "references/calibration.md" in normalized
-    assert "Сопоставление и статус фиксируются совместно" in normalized
-    assert "Для каждой исходной строки матрицы сразу создать одну рабочую matrix-oriented группу" in normalized
-    assert "Для каждой применимой matrix-oriented группы" in normalized
-    assert "Проверить остаточное содержание договора" in normalized
-    assert "Не определять `extra_in_contract` простым вычитанием" in normalized
-    assert "Подготовить состав итогового заключения" in normalized
-    assert "Проверить полноту и завершить анализ" in normalized
-    assert "Делегирование частей анализа" in normalized
-    assert "Режим исполнения: проверить до первой записи" in normalized
-    assert "это также подтверждается системным сообщением" in normalized
-    assert "все упоминания канонических `/outputs/working/analysis.json`, `/outputs/result.json`" in normalized
-    assert "В файле отсутствуют `completion_status` и итоговое заключение" in normalized
-    assert "Навык применяется в одном из двух режимов" in normalized
-    assert "`{\"scope\": \"<scope>\", \"assigned_matrix_ids\": [...], \"groups\": [...]}`" in normalized
-    assert "Канонические `/outputs/working/analysis.json` и `/outputs/result.json` ведёт только главный агент" in normalized
-    assert "Главный агент дожидается завершения всех назначенных задач" in normalized
-    assert "главный агент обязан перепроверить каждую полученную группу" in normalized
-
-
-def test_delegation_contract_uses_exact_matrix_id_sets_and_scratch_schema() -> None:
-    normalized = _normalized(_skill())
-    assert "assigned_matrix_ids" in normalized
-    assert "groups[].matrix_id" in normalized
-    assert "точного равенства мультимножеств" in normalized
-    assert "не пропущен" in normalized
-    assert "не повторён" in normalized
-    for field in (
-        "accepted_contract_items",
-        "uncovered_or_changed_elements",
-        "rejected_weak_candidates",
-        "calibration_case_ids",
-    ):
-        assert field in normalized
-
-
-def test_skill_makes_candidate_acceptance_independent_from_coverage_status() -> None:
-    normalized = _normalized(_skill()).lower()
-    assert re.search(r"(сильный|прямой) частичный аналог", normalized)
-    assert "техническая возможность" in normalized
-    assert "accepted_contract_items" in normalized
-    assert "uncovered_or_changed_elements" in normalized
-    assert "rejected_weak_candidates" in normalized
-    assert re.search(
-        r"`missing_in_contract`[^.]{0,500}пуст",
-        normalized,
-        flags=re.IGNORECASE,
-    )
-    assert re.search(
-        r"`deviation`[^.]{0,500}(хотя бы один|непуст)[^.]{0,300}принят",
-        normalized,
-        flags=re.IGNORECASE,
-    )
-
-
-def test_skill_requires_a_contract_residual_inventory() -> None:
-    normalized = _normalized(_skill())
-    assert "contract_inventory" in normalized
-    assert "disposition" in normalized
-    for disposition in (
-        "no_residual",
-        "residual_attached_to_deviation",
-        "extra",
-        "non_substantive",
-    ):
-        assert disposition in normalized
-    assert "кажд" in normalized and "смыслов" in normalized
-    assert "простым вычитанием" in normalized
-
-
-def test_skill_anchors_linked_appendices_and_preserves_source_text() -> None:
-    normalized = _normalized(_skill()).lower()
-    assert "`id: null` оставлен только действительно непривязанному материалу" in normalized
-    assert re.search(
-        r"`locator`.{0,500}(номерн|якор).{0,500}прилож",
-        normalized,
-        flags=re.IGNORECASE,
-    )
-    assert re.search(
-        r"`text`.{0,500}(полн|дослов).{0,500}прилож",
-        normalized,
-        flags=re.IGNORECASE,
-    )
-    assert "дослов" in normalized
-    assert "без внесённых многоточ" in normalized
-    assert "нормализац" in normalized
-
-
-def test_skill_defines_status_boundaries_and_final_output() -> None:
-    skill = _skill()
-    normalized = _normalized(skill)
-    for status in (
-        "`aligned`",
-        "`deviation`",
-        "`missing_in_contract`",
-        "`optional_absent`",
-        "`not_applicable`",
-        "`extra_in_contract`",
-    ):
-        assert status in normalized
-    assert "Если часть требования не покрыта, продолжить целевой поиск" in normalized
-    assert "Срок, сумма, условие или иное положение договора покрывает элемент матрицы лишь тогда" in normalized
-    assert "в `disagreements` присутствуют только `deviation`, `missing_in_contract` и `extra_in_contract`" in normalized
-    assert "Поле `calibration_case_ids` используется только для внутренней самопроверки" in normalized
-    assert "изменить уже существующий `/outputs/result.json` посредством `edit_file`" in normalized
-    assert "Не удалять итоговый файл ради повторного создания" in normalized
-
-    match = re.search(r"```json\s*(\{.*?\})\s*```", skill, flags=re.DOTALL)
-    assert match is not None
-    example = json.loads(match.group(1))
-    assert set(example) == {"completion_status", "disagreements"}
-    assert set(example["disagreements"][0]) == {
-        "status",
-        "matrix_item",
-        "contract_items",
-        "comment",
-    }
-
-
-def test_calibration_is_anonymous_and_covers_core_boundaries() -> None:
-    reference = _reference("calibration.md")
-    normalized = _normalized(reference)
-    assert len(re.findall(r"(?m)^## CAL-", reference)) == 10
-    for case_id in range(1, 11):
-        assert f"CAL-{case_id:02d}" in reference
-    assert "Граница законодательной ссылки" in normalized
-    assert "Одинаковое число, разный триггер" in normalized
-    assert "Один договорный пункт может участвовать в разных матричных группах" in normalized
-    assert "Настоящий extra" in normalized
-    assert "презумпцию применимости" in normalized
-
-    partial_boundary = _calibration_case(reference, 3).lower()
-    assert "прям" in partial_boundary and "частич" in partial_boundary
-    assert "техническ" in partial_boundary and "возможност" in partial_boundary
-    assert "deviation" in partial_boundary
-    assert "missing_in_contract" in partial_boundary
-
-    inversion = _calibration_case(reference, 5).lower()
-    assert "инверси" in inversion
-    assert "юридическ" in inversion and "операц" in inversion
-    assert "deviation" in inversion
-
-    residual_extra = _calibration_case(reference, 8).lower()
-    assert "остат" in residual_extra
-    assert "extra_in_contract" in residual_extra
-
-    optional = _calibration_case(reference, 9).lower()
-    assert "optional" in optional
-    assert "аналог" in optional
-    assert "aligned" in optional and "deviation" in optional
-
-    dependency_isolation = _calibration_case(reference, 10).lower()
-    assert "зависим" in dependency_isolation
-    assert "самостоятельн" in dependency_isolation
-    assert "deviation" in dependency_isolation
-    assert "missing_in_contract" in dependency_isolation
-    assert not re.search(
-        r"(?i)gold|kavkaz|irkutsk|altai|kuzbas|kaluga|\.xlsx|\.txt", reference
-    )
-
-
-def test_skill_has_no_runtime_or_tool_micromanagement() -> None:
-    lower = _skill().lower()
-    for stale in (
-        "до 30 минут",
-        "результаты прежних прогонов",
-        "powershell",
-        "timeout",
-        "mapping.json",
-        "status-adjudication",
-        "matrix_groups",
-        "extra_contract_findings",
-    ):
-        assert stale not in lower
-
-
-def test_reasoning_defaults_match_current_agent() -> None:
-    signature = inspect.signature(llm.get_llm)
-    assert signature.parameters["thinking"].default is True
-    assert signature.parameters["reasoning_effort"].default == "medium"
-    assert signature.parameters["max_completion_tokens"].default == 64_000
-
-
-def test_run_agent_invokes_one_graph_once(tmp_path: Path, monkeypatch) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeAgent:
-        def invoke(self, payload: object, config: object) -> None:
-            captured["payload"] = payload
-            captured["config"] = config
-
-    backend = object()
-    monkeypatch.setattr(main, "build_backend", lambda workspace: backend)
-
-    def fake_build(received_backend):
-        assert received_backend is backend
-        captured["build_count"] = int(captured.get("build_count", 0)) + 1
-        return FakeAgent()
-
-    monkeypatch.setattr(main, "build_agent", fake_build)
-    main.run_agent(tmp_path)
-    assert captured["build_count"] == 1
-    assert captured["payload"]["messages"][0]["content"] == main.USER_PROMPT
-    assert captured["config"]["recursion_limit"] == 10_000
-
-
-def test_transient_retry_reuses_same_agent_and_thread(
-    tmp_path: Path, monkeypatch
-) -> None:
-    build_count = 0
-    invoke_count = 0
-    sleeps: list[int] = []
-    configs: list[dict] = []
-
-    class FlakyAgent:
-        def invoke(self, payload: object, config: object) -> None:
-            nonlocal invoke_count
-            invoke_count += 1
-            configs.append(config)
-            if invoke_count == 1:
-                raise main.httpx.ReadError("connection reset")
-
-    monkeypatch.setattr(main, "build_backend", lambda workspace: object())
-
-    def fake_build(backend):
-        nonlocal build_count
-        build_count += 1
-        return FlakyAgent()
-
-    monkeypatch.setattr(main, "build_agent", fake_build)
-    monkeypatch.setattr(main.time, "sleep", lambda seconds: sleeps.append(seconds))
-    main.run_agent(tmp_path)
-    assert build_count == 1
-    assert invoke_count == 2
-    assert sleeps == [2]
-    assert configs[0]["configurable"]["thread_id"] == configs[1]["configurable"]["thread_id"]
-
-
-def test_build_backend_preserves_tools_and_hides_credentials(
-    tmp_path: Path, monkeypatch
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeBackend:
-        def __init__(self, **kwargs: object) -> None:
-            captured.update(kwargs)
-
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "secret")
-    monkeypatch.setattr(main, "WindowsPowerShellBackend", FakeBackend)
-    main.build_backend(tmp_path)
-
-    assert captured["root_dir"] == tmp_path
-    assert captured["virtual_mode"] is True
-    assert captured["max_output_bytes"] == 400_000
-    assert captured["inherit_env"] is False
-    assert captured["env"]["PYTHONUTF8"] == "1"
-    assert captured["env"]["PYTHONIOENCODING"] == "utf-8"
-    assert captured["env"]["DEEPAGENT_WORKSPACE_ROOT"] == str(tmp_path.resolve())
-    assert "DEEPSEEK_API_KEY" not in captured["env"]
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows-specific backend")
-def test_windows_backend_uses_powershell_and_utf8(tmp_path: Path) -> None:
-    backend = main.WindowsPowerShellBackend(
-        root_dir=tmp_path,
-        virtual_mode=True,
-        env={"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
-        inherit_env=True,
-    )
-    result = backend.execute("Write-Output 'Привет'")
-    assert result.exit_code == 0
-    assert "Привет" in result.output
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows-specific backend")
-def test_windows_backend_maps_virtual_shell_paths_to_workspace(tmp_path: Path) -> None:
-    (tmp_path / "outputs").mkdir()
-    backend = main.WindowsPowerShellBackend(
-        root_dir=tmp_path,
-        virtual_mode=True,
-        env={"PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
-        inherit_env=True,
-    )
-    result = backend.execute(
-        "Set-Content -LiteralPath '/outputs/probe.txt' -Value 'ok' -Encoding UTF8"
-    )
-    assert result.exit_code == 0
-    assert (tmp_path / "outputs" / "probe.txt").is_file()
-    assert (
-        backend._normalize_virtual_shell_paths("Invoke-WebRequest https://host/outputs/x")
-        == "Invoke-WebRequest https://host/outputs/x"
-    )
-    assert (
-        backend._normalize_virtual_shell_paths(
-            "python -c \"open('/outputs/result.json')\""
-        )
-        == "python -c \"open('outputs/result.json')\""
-    )
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows-specific backend")
-def test_windows_backend_grep_handles_utf8(tmp_path: Path) -> None:
-    sample = tmp_path / "кириллица.txt"
-    sample.write_text("первая строка\nточное Привет совпадение\n", encoding="utf-8")
-    backend = main.WindowsPowerShellBackend(
-        root_dir=tmp_path,
-        virtual_mode=True,
-        inherit_env=True,
-    )
-    result = backend.grep("Привет", path="/кириллица.txt")
-    assert result.error is None
-    assert result.matches == [
-        {"path": "/кириллица.txt", "line": 2, "text": "точное Привет совпадение"}
-    ]
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows-specific backend")
-@pytest.mark.parametrize("requested, expected", [(None, None), (0, None), (7, 7)])
-def test_windows_backend_timeout_semantics(
-    tmp_path: Path,
-    monkeypatch,
-    requested: int | None,
-    expected: int | None,
-) -> None:
-    captured: dict[str, object] = {}
-
-    def fake_run(*args: object, **kwargs: object) -> SimpleNamespace:
-        captured.update(kwargs)
-        return SimpleNamespace(stdout="ok\n", stderr="", returncode=0)
-
-    monkeypatch.setattr(main.subprocess, "run", fake_run)
-    backend = main.WindowsPowerShellBackend(
-        root_dir=tmp_path,
-        virtual_mode=True,
-        inherit_env=True,
-    )
-    backend.execute("Write-Output ok", timeout=requested)
-    assert captured["timeout"] == expected
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows-specific backend")
-def test_windows_backend_rejects_negative_timeout(tmp_path: Path) -> None:
-    backend = main.WindowsPowerShellBackend(
-        root_dir=tmp_path,
-        virtual_mode=True,
-        inherit_env=True,
-    )
-    with pytest.raises(ValueError, match="non-negative"):
-        backend.execute("Write-Output ok", timeout=-1)
-
-
-@pytest.mark.skipif(os.name != "nt", reason="Windows-specific backend")
-def test_windows_backend_returns_nonzero_exit_code(tmp_path: Path) -> None:
-    backend = main.WindowsPowerShellBackend(
-        root_dir=tmp_path,
-        virtual_mode=True,
-        inherit_env=True,
-    )
-    result = backend.execute("Write-Error 'ошибка'; exit 7")
-    assert result.exit_code == 7
-    assert "Exit code: 7" in result.output
-
-
-def test_main_publishes_agent_result_and_removes_workspace(
-    tmp_path: Path, monkeypatch
-) -> None:
-    workspace = tmp_path / "workspace"
-    (workspace / "outputs").mkdir(parents=True)
-    output = tmp_path / "published" / "result.json"
-    output.parent.mkdir(parents=True)
-
+    monkeypatch.setattr(main, "get_llm", lambda: model)
     monkeypatch.setattr(
         main,
-        "prepare_workspace",
-        lambda contract, matrix, requested: (workspace, output),
+        "register_harness_profile",
+        lambda key, profile: registrations.append((key, profile)),
+    )
+    backend = main.build_backend(tmp_path)
+
+    main.build_agent(backend)
+
+    assert registrations[0][0] == "openai:deepseek-v4-pro"
+    profile = registrations[0][1]
+    assert profile.general_purpose_subagent.enabled is False
+    assert captured["name"] == "contract-review-orchestrator"
+    assert captured["model"] is model
+    assert captured["backend"] is backend
+    assert captured["memory"] == ["/AGENTS.md"]
+    assert captured["skills"] == ["/skills/orchestrator/"]
+    subagents = captured["subagents"]
+    assert isinstance(subagents, list)
+    assert [subagent["name"] for subagent in subagents] == ["mapping", "status"]
+    assert "skills" not in subagents[0]
+    assert subagents[0]["system_prompt"] == main.MAPPING_SUBAGENT_PROMPT
+    assert subagents[1]["system_prompt"] == main.STATUS_SUBAGENT_PROMPT
+    assert subagents[1]["skills"] == ["/skills/status/"]
+
+
+def test_compact_trace_handler_omits_payloads(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    handler = main.CompactTraceHandler()
+    model_run = uuid.uuid4()
+    tool_run = uuid.uuid4()
+    handler.on_chat_model_start({}, [["secret prompt"]], run_id=model_run)
+    handler.on_llm_end(None, run_id=model_run)
+    handler.on_tool_start({"name": "read_file"}, "secret input", run_id=tool_run)
+    handler.on_tool_end("secret output", run_id=tool_run)
+    trace = capsys.readouterr().out
+    assert all(event in trace for event in ("model_start", "model_end", "tool_start", "tool_end"))
+    assert "read_file" in trace
+    assert "secret" not in trace
+
+
+def test_windows_virtual_path_normalization() -> None:
+    command = (
+        "python -c \"open('/inputs/contract.txt'); "
+        "open('/outputs/result.json'); open('/skills/status/SKILL.md')\""
+    )
+    assert main.WindowsPowerShellBackend._normalize_virtual_shell_paths(command) == (
+        "python -c \"open('inputs/contract.txt'); "
+        "open('outputs/result.json'); open('skills/status/SKILL.md')\""
     )
 
-    def fake_run(received: Path) -> None:
-        assert received == workspace
+
+@pytest.mark.skipif(main.os.name != "nt", reason="Windows backend test")
+def test_windows_backend_execute_preserves_utf8_and_cwd(tmp_path: Path) -> None:
+    response = main.build_backend(tmp_path).execute("Write-Output 'Привет'; (Get-Location).Path")
+    assert response.exit_code == 0
+    assert "Привет" in response.output
+    assert str(tmp_path.resolve()).lower() in response.output.lower()
+
+
+@pytest.mark.skipif(main.os.name != "nt", reason="Windows backend test")
+def test_windows_backend_reports_nonzero_exit(tmp_path: Path) -> None:
+    response = main.build_backend(tmp_path).execute(
+        "[Console]::Error.WriteLine('ошибка'); exit 7"
+    )
+    assert response.exit_code == 7
+    assert "ошибка" in response.output
+    assert "Exit code: 7" in response.output
+
+
+def test_main_publishes_only_final_protocol(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    contract, matrix = _inputs(tmp_path)
+    output = tmp_path / "published" / "result.json"
+
+    def fake_run_agent(workspace: Path) -> None:
+        (workspace / "outputs" / "working" / "mapping.json").write_text(
+            '{"completion_status":"complete"}', encoding="utf-8"
+        )
+        (workspace / "outputs" / "working" / "status.json").write_text(
+            '{"completion_status":"complete"}', encoding="utf-8"
+        )
         (workspace / "outputs" / "result.json").write_text(
-            '{"completion_status":"complete","disagreements":[]}',
+            json.dumps(
+                {
+                    "completion_status": "complete",
+                    "disagreements": [
+                        {
+                            "status": "deviation",
+                            "contract_items": [],
+                            "matrix_items": [],
+                            "comment": "test",
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
             encoding="utf-8",
         )
 
-    monkeypatch.setattr(main, "run_agent", fake_run)
-    assert (
-        main.main(
-            ["--contract", "c.txt", "--matrix", "m.json", "--output", "o.json"]
-        )
-        == 0
+    monkeypatch.setattr(main, "run_agent", fake_run_agent)
+    exit_code = main.main(
+        [
+            "--contract",
+            str(contract),
+            "--matrix",
+            str(matrix),
+            "--output",
+            str(output),
+        ]
     )
-    assert json.loads(output.read_text(encoding="utf-8")) == {
-        "completion_status": "complete",
-        "disagreements": [],
-    }
-    assert not workspace.exists()
+    assert exit_code == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["completion_status"] == "complete"
+    assert result["disagreements"][0]["status"] == "deviation"
+    assert sorted(path.name for path in output.parent.iterdir()) == ["result.json"]
