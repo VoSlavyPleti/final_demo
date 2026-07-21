@@ -67,10 +67,12 @@ def test_mapping_skill_defines_mapping_contract_and_calibration() -> None:
     assert "fallback" in skill
     assert "прямая связь имеет приоритет перед инверсией" in skill
     assert "объединение mapped и missing id" in skill.lower()
-    assert "MAP-05" in reference
+    assert "MAP-07" in reference
     assert "инверсия как fallback" in reference
     assert "если прямого договорного положения" in reference.casefold()
-    assert "не добавлять c-e" in reference.lower()
+    assert "не добавлять c-g" in reference.lower()
+    assert "частичное покрытие самостоятельного аспекта" in reference
+    assert "дословный сильный аналог" in reference
     for forbidden in ("gold", "KAVKAZ", "Кавказ", ".xlsx", "4.4", "4.2.12"):
         assert forbidden.casefold() not in reference.casefold()
 
