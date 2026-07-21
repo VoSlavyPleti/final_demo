@@ -30,19 +30,15 @@ def _inputs(tmp_path: Path) -> tuple[Path, Path]:
     return contract, matrix
 
 
-def test_mapping_prompt_has_fixed_scope_and_working_contract() -> None:
+def test_mapping_prompt_delegates_methodology_to_its_skill() -> None:
     prompt = main.MAPPING_SUBAGENT_PROMPT.lower()
-    assert "промежуточную карту юридических аналогов" in prompt
-    assert "contract-oriented" in prompt
-    assert "many-to-many" in prompt
+    assert "contract-mapping" in prompt
+    assert "/inputs/contract.txt" in prompt
+    assert "/inputs/matrix.json" in prompt
     assert "/outputs/working/mapping.json" in prompt
-    assert '"mappings"' in prompt
-    assert '"mapped_scope"' in prompt
-    assert '"missing_matrix_ids"' in prompt
-    assert "не определяй применимость" in prompt
-    assert "не присваивает статусы" in prompt
-    assert "каждый пункт матрицы классифицирован ровно как mapped или missing" in prompt
+    assert "не присваивай статусы" in prompt
     assert "/outputs/result.json" not in prompt
+    assert '"mappings"' not in prompt
     for forbidden in (
         "deviation",
         "missing_in_contract",
@@ -50,6 +46,33 @@ def test_mapping_prompt_has_fixed_scope_and_working_contract() -> None:
         "contract-group-status",
     ):
         assert forbidden not in prompt
+
+
+def test_mapping_skill_defines_mapping_contract_and_calibration() -> None:
+    skill = main.MAPPING_SKILL_SOURCE.joinpath("SKILL.md").read_text(
+        encoding="utf-8"
+    )
+    reference = main.MAPPING_SKILL_SOURCE.joinpath(
+        "references", "mapping-examples.md"
+    ).read_text(encoding="utf-8")
+
+    assert "/outputs/working/mapping.json" in skill
+    assert "many-to-many" in skill
+    assert "contract-oriented" in skill
+    assert '"mappings"' in skill
+    assert '"mapped_scope"' in skill
+    assert '"missing_matrix_ids"' in skill
+    assert "не определять применимость" in skill
+    assert "не присваивать статусы" in skill
+    assert "fallback" in skill
+    assert "прямая связь имеет приоритет перед инверсией" in skill
+    assert "объединение mapped и missing id" in skill.lower()
+    assert "MAP-05" in reference
+    assert "инверсия как fallback" in reference
+    assert "если прямого договорного положения" in reference.casefold()
+    assert "не добавлять c-e" in reference.lower()
+    for forbidden in ("gold", "KAVKAZ", "Кавказ", ".xlsx", "4.4", "4.2.12"):
+        assert forbidden.casefold() not in reference.casefold()
 
 
 def test_status_prompt_uses_fixed_mapping_and_its_skill() -> None:
@@ -144,8 +167,18 @@ def test_prepare_workspace_installs_memory_skills_and_inputs(tmp_path: Path) -> 
             / "contract-group-status"
             / "SKILL.md"
         )
+        mapping = (
+            workspace
+            / "skills"
+            / "mapping"
+            / "contract-mapping"
+            / "SKILL.md"
+        )
+        mapping_examples = mapping.parent / "references" / "mapping-examples.md"
         calibration = status.parent / "references" / "calibration.md"
         assert orchestration.is_file()
+        assert mapping.is_file()
+        assert mapping_examples.is_file()
         assert status.is_file()
         assert calibration.is_file()
     finally:
@@ -212,8 +245,8 @@ def test_build_agent_registers_two_specialists(
     subagents = captured["subagents"]
     assert isinstance(subagents, list)
     assert [subagent["name"] for subagent in subagents] == ["mapping", "status"]
-    assert "skills" not in subagents[0]
     assert subagents[0]["system_prompt"] == main.MAPPING_SUBAGENT_PROMPT
+    assert subagents[0]["skills"] == ["/skills/mapping/"]
     assert subagents[1]["system_prompt"] == main.STATUS_SUBAGENT_PROMPT
     assert subagents[1]["skills"] == ["/skills/status/"]
 
