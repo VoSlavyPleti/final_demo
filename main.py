@@ -31,7 +31,7 @@ from llm import get_llm
 PROJECT_ROOT = Path(__file__).resolve().parent
 AGENT_MEMORY_SOURCE = PROJECT_ROOT / "AGENTS.md"
 MAPPING_SKILL_SOURCE = PROJECT_ROOT / "skills" / "contract-mapping"
-RECOVERY_SKILL_SOURCE = PROJECT_ROOT / "skills" / "contract-mapping-recovery"
+STATUS_SKILL_SOURCE = PROJECT_ROOT / "skills" / "contract-group-status"
 
 MAPPING_SUBAGENT_PROMPT = """
 Ты — специализированный subagent `mapping`. Выполни только построение карты
@@ -49,23 +49,30 @@ MAPPING_SUBAGENT_PROMPT = """
 верни оркестратору только путь к `/outputs/working/mapping.json`.
 """.strip()
 
-RECOVERY_SUBAGENT_PROMPT = """
-Ты — специализированный subagent `mapping-recovery`. Выполни только точечную
-перепроверку готовой карты юридических аналогов.
+STATUS_SUBAGENT_PROMPT = """
+Ты — специализированный subagent `status`. Выполни статусную оценку принятой
+карты и только необходимое для этой оценки локальное восстановление кандидатов.
 
 Перед содержательной работой обязательно прочитай и полностью выполни skill
-`contract-mapping-recovery`.
+`contract-group-status`.
 
 Входы: `/inputs/contract.txt`, `/inputs/matrix.json` и
 `/outputs/working/mapping.json`.
-Результат: `/outputs/working/mapping-recovered.json`.
+Первый checkpoint: `/outputs/working/status-provisional.json`.
+Промежуточный результат: `/outputs/working/mapping-adjustments.json`.
+Итог этапа: `/outputs/working/status.json`.
 
-Не выполняй полный mapping заново, не присваивай статусы и не формируй заключение.
-При успехе верни оркестратору только путь к созданному файлу.
+Не выполняй полный mapping заново и не формируй итоговый протокол. Если слабая,
+пустая или неполная группа мешает корректному статусу, восстанови только
+относящихся кандидатов по правилам skill и сохрани принятый состав внутри
+status-артефакта. Сначала зафиксируй предварительные статусы и recovery-очередь,
+затем все добавления и удаления, после чего пересчитай только затронутые группы.
+При успехе верни оркестратору пути ко всем трём файлам.
 """.strip()
 
 ORCHESTRATOR_SYSTEM_PROMPT = """
-Ты — оркестратор mapping-фазы. Постоянный профиль проекта загружен из `AGENTS.md`.
+Ты — оркестратор mapping и status-фаз. Постоянный профиль проекта загружен из
+`AGENTS.md`.
 
 Первым содержательным действием вызови subagent `mapping` ровно для одной задачи:
 построить полную карту в `/outputs/working/mapping.json`. Не дели договор или
@@ -79,20 +86,36 @@ ORCHESTRATOR_SYSTEM_PROMPT = """
 пересматривай юридических кандидатов. При дефекте повторно вызови `mapping` с теми
 же входами и точным описанием дефекта.
 
-После принятия базовой карты один раз вызови subagent `mapping-recovery`. Поручи
-ему точечно перепроверить базовую карту и сохранить
-`/outputs/working/mapping-recovered.json`. Прими восстановленную карту по тем же
-структурным условиям. При структурном дефекте повторно вызови только
-`mapping-recovery` с точным описанием дефекта. Заверши работу после принятия
-восстановленной карты. Статусы и другие этапы анализа не запускай.
+После принятия карты один раз вызови subagent `status`. Передай ему все три пути и
+поручи определить применимость и статусы, точечно восстановив кандидатов только
+там, где это необходимо для решения. Не выполняй recovery самостоятельно и не
+вызывай отдельного recovery-агента.
+
+После завершения прочитай `/outputs/working/status-provisional.json`,
+`/outputs/working/mapping-adjustments.json` и `/outputs/working/status.json`.
+Проверь только структурный контракт: все три файла — валидный JSON с
+`completion_status: "complete"`; status имеет
+`schema_version: "status.v2"`, массивы `mapping_changes`, `groups` и
+`matrix_review`; `mapping_changes` дословно совпадает с `changes` промежуточного
+файла; число, порядок, `contract_id` и `contract_locator` групп совпадают с
+baseline; каждый `number` матрицы имеет ровно один `matrix_review`; каждый
+добавленный кандидат имеет непустые `contract_evidence` и `matrix_evidence`;
+каждый `deviation` имеет полный непустой `difference_basis`; незатронутые
+recovery-очередью группы совпадают с provisional по статусным полям; итоговые
+кандидаты каждой группы в точности равны baseline плюс зарегистрированные `add`
+минус `remove`; нет `extra_in_contract` с кандидатами и нет `aligned` или
+`deviation` без применимых `evaluated_matrix_ids`. При дефекте повторно вызови
+только `status` с точным описанием дефекта. Юридические решения самостоятельно не
+пересматривай.
 """.strip()
 
 RUN_PROMPT = """
-Организуй mapping и точечный mapping-recovery для `/inputs/contract.txt` и
-`/inputs/matrix.json`. Получи и прими базовую карту
-`/outputs/working/mapping.json`, затем восстановленную карту
-`/outputs/working/mapping-recovered.json`. После структурной приёмки заверши
-работу без оценки статусов.
+Организуй последовательность mapping → status для `/inputs/contract.txt` и
+`/inputs/matrix.json`. Получи и прими `/outputs/working/mapping.json`, затем вызови
+status-сабагента и прими `/outputs/working/status.json`. Отдельный recovery-проход
+не запускай. До принятия status проверь также созданные им
+`/outputs/working/status-provisional.json` и
+`/outputs/working/mapping-adjustments.json`.
 """.strip()
 
 
@@ -348,7 +371,7 @@ def prepare_workspace(
     required_project_files = (
         AGENT_MEMORY_SOURCE,
         MAPPING_SKILL_SOURCE / "SKILL.md",
-        RECOVERY_SKILL_SOURCE / "SKILL.md",
+        STATUS_SKILL_SOURCE / "SKILL.md",
     )
     for source in required_project_files:
         if not source.is_file():
@@ -358,10 +381,10 @@ def prepare_workspace(
     (workspace / "inputs").mkdir(parents=True)
     (workspace / "outputs" / "working").mkdir(parents=True)
     mapping_skill_target = workspace / "skills" / MAPPING_SKILL_SOURCE.name
-    recovery_skill_target = workspace / "skills" / RECOVERY_SKILL_SOURCE.name
+    status_skill_target = workspace / "skills" / STATUS_SKILL_SOURCE.name
     shutil.copyfile(AGENT_MEMORY_SOURCE, workspace / "AGENTS.md")
     shutil.copytree(MAPPING_SKILL_SOURCE, mapping_skill_target)
-    shutil.copytree(RECOVERY_SKILL_SOURCE, recovery_skill_target)
+    shutil.copytree(STATUS_SKILL_SOURCE, status_skill_target)
     shutil.copyfile(contract, workspace / "inputs" / "contract.txt")
     shutil.copyfile(matrix, workspace / "inputs" / "matrix.json")
     return workspace, output
@@ -410,7 +433,7 @@ def build_agent(backend: WindowsPowerShellBackend):
         ),
     )
     return create_deep_agent(
-        name="contract-mapping-orchestrator",
+        name="contract-analysis-orchestrator",
         model=model,
         system_prompt=ORCHESTRATOR_SYSTEM_PROMPT,
         backend=backend,
@@ -428,13 +451,14 @@ def build_agent(backend: WindowsPowerShellBackend):
                 "skills": ["/skills/"],
             },
             {
-                "name": "mapping-recovery",
+                "name": "status",
                 "description": (
-                    "Точечно восстанавливает пропущенные или слабые юридические "
-                    "аналоги в готовой карте и сохраняет "
-                    "/outputs/working/mapping-recovered.json без статусов."
+                    "Определяет профиль, применимость и статусы принятой карты; "
+                    "локально восстанавливает кандидатов только для слабых, "
+                    "неполных и потенциально missing/extra групп; сохраняет "
+                    "журнал mapping-adjustments и /outputs/working/status.json."
                 ),
-                "system_prompt": RECOVERY_SUBAGENT_PROMPT,
+                "system_prompt": STATUS_SUBAGENT_PROMPT,
                 "model": model,
                 "skills": ["/skills/"],
             },
@@ -483,11 +507,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         workspace, output = prepare_workspace(args.contract, args.matrix, args.output)
         run_agent(workspace)
-        generated = workspace / "outputs" / "working" / "mapping-recovered.json"
+        generated = workspace / "outputs" / "working" / "status.json"
         if not generated.is_file():
             raise RuntimeError(
                 "Agent finished without creating "
-                "/outputs/working/mapping-recovered.json"
+                "/outputs/working/status.json"
             )
         generated.replace(output)
     except (FileNotFoundError, RuntimeError, ValueError) as exc:

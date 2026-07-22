@@ -68,22 +68,45 @@ def test_mapping_skill_contains_full_mapping_contract() -> None:
     assert "не выполнять отдельный recovery-проход" not in skill.lower()
 
 
-def test_mapping_recovery_prompt_and_skill_are_targeted() -> None:
-    prompt = main.RECOVERY_SUBAGENT_PROMPT.lower()
-    skill = (main.RECOVERY_SKILL_SOURCE / "SKILL.md").read_text(encoding="utf-8")
-    assert "contract-mapping-recovery" in prompt
+def test_status_prompt_and_skill_integrate_targeted_recovery() -> None:
+    prompt = main.STATUS_SUBAGENT_PROMPT.lower()
+    skill = (main.STATUS_SKILL_SOURCE / "SKILL.md").read_text(encoding="utf-8")
+    assert "contract-group-status" in prompt
     assert "/outputs/working/mapping.json" in prompt
-    assert "/outputs/working/mapping-recovered.json" in prompt
+    assert "/outputs/working/status-provisional.json" in prompt
+    assert "/outputs/working/mapping-adjustments.json" in prompt
+    assert "/outputs/working/status.json" in prompt
     assert "не выполняй полный mapping заново" in prompt
-    assert "не присваивай статусы" in prompt
-    assert "группы с пустым `candidates`" in skill
-    assert "срокам, датам" in skill
-    assert "корреспондирующие права и обязанности" in skill
-    assert "Не проверять заново полностью согласованные группы" in skill
-    assert 'схемы `mapping.v1`' in skill
+    assert "локальным восстановлением mapping" in skill
+    assert "корреспондирующее право и обязанность" in skill
+    assert "применимый обязательный пункт матрицы остался без кандидата" in skill
+    assert "обрабатывать только элементы `recovery_queue`" in skill.lower()
+    assert "не запускать recovery только из-за отличия срока" in skill.lower()
+    assert "baseline-набору плюс" in skill
+    assert "нет `extra_in_contract` с кандидатами" in skill
+    assert '"schema_version": "status.v2"' in skill
+    assert '"mapping_changes"' in skill
+    assert '"difference_basis"' in skill
+    assert "final_unmapped_matrix_ids" not in skill
+    assert all(status in skill for status in (
+        "aligned", "deviation", "extra_in_contract", "missing_in_contract"
+    ))
+    calibration = (
+        main.STATUS_SKILL_SOURCE / "references" / "calibration.md"
+    ).read_text(encoding="utf-8")
+    assert "корреспондирующие способы оплаты" in calibration
+    assert "документы приёмки" in calibration
+    assert "инверсия ролей" in calibration
+    assert "placeholder" in calibration
+    assert "альтернативы матрицы" in calibration
+    assert "неприменимый кандидат" in calibration
+    assert "законная конкретизация" in calibration
+    assert "исправление слабого baseline-кандидата" in calibration
+    for forbidden in ("gold", "KAVKAZ", "Кавказ", ".xlsx"):
+        assert forbidden.casefold() not in calibration.casefold()
 
 
-def test_orchestrator_contract_is_mapping_only() -> None:
+def test_orchestrator_contract_runs_mapping_then_status() -> None:
     prompt = main.ORCHESTRATOR_SYSTEM_PROMPT.lower()
     normalized_prompt = " ".join(prompt.split())
     user_prompt = main.RUN_PROMPT.lower()
@@ -92,21 +115,18 @@ def test_orchestrator_contract_is_mapping_only() -> None:
     assert "первым содержательным действием вызови subagent `mapping`" in prompt
     assert "не выполняй юридическое сопоставление самостоятельно" in prompt
     assert "дождись завершения mapper" in prompt
-    assert "после принятия базовой карты один раз вызови subagent `mapping-recovery`" in normalized_prompt
-    assert "другие этапы анализа не запускай" in normalized_prompt
-    assert "mapping и точечный mapping-recovery" in user_prompt
+    assert "после принятия карты один раз вызови subagent `status`" in normalized_prompt
+    assert "не вызывай отдельного recovery-агента" in normalized_prompt
+    assert "baseline плюс зарегистрированные `add`" in normalized_prompt
+    assert "mapping → status" in user_prompt
     assert "/inputs/contract.txt" in user_prompt
     assert "/inputs/matrix.json" in user_prompt
     assert "/outputs/working/mapping.json" in user_prompt
-    assert "/outputs/working/mapping-recovered.json" in user_prompt
+    assert "/outputs/working/status-provisional.json" in user_prompt
+    assert "/outputs/working/mapping-adjustments.json" in user_prompt
+    assert "/outputs/working/status.json" in user_prompt
     combined = "\n".join((prompt, user_prompt))
-    for inactive in (
-        "contract-group-status",
-        "/outputs/working/status.json",
-        "/outputs/result.json",
-        "missing_in_contract",
-        "extra_in_contract",
-    ):
+    for inactive in ("/outputs/result.json", "mapping-recovered.json"):
         assert inactive not in combined
 
 
@@ -117,15 +137,10 @@ def test_agents_memory_contains_stable_project_policy() -> None:
     assert "Пункт матрицы — один исходный объект" in memory
     assert "Сопоставление является many-to-many" in memory
     assert "Совпадение только общей темы" in memory
-    assert "не определять применимость требований" in memory
+    assert "Mapping-этап не определяет применимость" in memory
+    assert "Status-этап принимает карту" in memory
     assert "/outputs/" not in memory
-    for inactive in (
-        "deviation",
-        "missing_in_contract",
-        "extra_in_contract",
-        "протокол разногласий",
-    ):
-        assert inactive not in memory
+    assert "Полный mapping заново не выполняется" in memory
 
 
 def test_prepare_workspace_installs_memory_skills_and_inputs(tmp_path: Path) -> None:
@@ -141,10 +156,13 @@ def test_prepare_workspace_installs_memory_skills_and_inputs(tmp_path: Path) -> 
         assert (workspace / "outputs" / "working").is_dir()
         mapping = workspace / "skills" / "contract-mapping" / "SKILL.md"
         calibration = mapping.parent / "references" / "mapping-calibration.md"
-        recovery = workspace / "skills" / "contract-mapping-recovery" / "SKILL.md"
+        status = workspace / "skills" / "contract-group-status" / "SKILL.md"
+        status_calibration = status.parent / "references" / "calibration.md"
         assert mapping.is_file()
         assert calibration.is_file()
-        assert recovery.is_file()
+        assert status.is_file()
+        assert status_calibration.is_file()
+        assert not (workspace / "skills" / "contract-mapping-recovery").exists()
         assert not (workspace / "skills" / "contract-mapping-orchestration").exists()
     finally:
         shutil.rmtree(workspace, ignore_errors=True)
@@ -173,7 +191,7 @@ def test_prepare_workspace_validates_extensions(
         main.prepare_workspace(contract, matrix, tmp_path / output_name)
 
 
-def test_build_agent_registers_mapping_and_recovery_specialists(
+def test_build_agent_registers_mapping_and_status_specialists(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     captured: dict[str, object] = {}
@@ -202,7 +220,7 @@ def test_build_agent_registers_mapping_and_recovery_specialists(
     assert registrations[0][0] == "openai:deepseek-v4-pro"
     profile = registrations[0][1]
     assert profile.general_purpose_subagent.enabled is False
-    assert captured["name"] == "contract-mapping-orchestrator"
+    assert captured["name"] == "contract-analysis-orchestrator"
     assert captured["model"] is model
     assert captured["backend"] is backend
     assert captured["memory"] == ["/AGENTS.md"]
@@ -211,11 +229,11 @@ def test_build_agent_registers_mapping_and_recovery_specialists(
     assert isinstance(subagents, list)
     assert [subagent["name"] for subagent in subagents] == [
         "mapping",
-        "mapping-recovery",
+        "status",
     ]
     assert all(subagent["skills"] == ["/skills/"] for subagent in subagents)
     assert subagents[0]["system_prompt"] == main.MAPPING_SUBAGENT_PROMPT
-    assert subagents[1]["system_prompt"] == main.RECOVERY_SUBAGENT_PROMPT
+    assert subagents[1]["system_prompt"] == main.STATUS_SUBAGENT_PROMPT
 
 
 def test_compact_trace_handler_omits_payloads(
@@ -263,7 +281,7 @@ def test_windows_backend_reports_nonzero_exit(tmp_path: Path) -> None:
     assert "Exit code: 7" in response.output
 
 
-def test_main_publishes_only_recovered_mapping_artifact(
+def test_main_publishes_only_status_artifact(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     contract, matrix = _inputs(tmp_path)
@@ -297,8 +315,48 @@ def test_main_publishes_only_recovered_mapping_artifact(
             payload,
             encoding="utf-8",
         )
-        (workspace / "outputs" / "working" / "mapping-recovered.json").write_text(
-            payload,
+        (workspace / "outputs" / "working" / "status.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "status.v2",
+                    "completion_status": "complete",
+                    "mapping_changes": [],
+                    "contract_profile": {},
+                    "groups": [
+                        {
+                            "contract_id": "1.1",
+                            "contract_locator": "Основной текст, п. 1.1",
+                            "candidates": [],
+                            "evaluated_matrix_ids": [],
+                            "status": "extra_in_contract",
+                            "comment": "",
+                            "difference_basis": None,
+                            "source_kind": "main_body",
+                            "independent_legal_obligation": True,
+                        }
+                    ],
+                    "matrix_review": [],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        (workspace / "outputs" / "working" / "mapping-adjustments.json").write_text(
+            json.dumps(
+                {"completion_status": "complete", "changes": []},
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        (workspace / "outputs" / "working" / "status-provisional.json").write_text(
+            json.dumps(
+                {
+                    "completion_status": "complete",
+                    "groups": [],
+                    "recovery_queue": [],
+                },
+                ensure_ascii=False,
+            ),
             encoding="utf-8",
         )
 
@@ -316,5 +374,6 @@ def test_main_publishes_only_recovered_mapping_artifact(
     assert exit_code == 0
     result = json.loads(output.read_text(encoding="utf-8"))
     assert result["completion_status"] == "complete"
-    assert result["mappings"][0]["contract_id"] == "1.1"
+    assert result["schema_version"] == "status.v2"
+    assert result["groups"][0]["status"] == "extra_in_contract"
     assert sorted(path.name for path in output.parent.iterdir()) == ["result.json"]
