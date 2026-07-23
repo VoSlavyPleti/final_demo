@@ -54,6 +54,7 @@ def test_mapping_skill_contains_full_mapping_contract() -> None:
     assert '"shared_legal_relation"' in skill
     assert '"contract_evidence"' in skill
     assert '"matrix_evidence"' in skill
+    assert '"contract_evidence_locator"' in skill
     assert '"unmapped_matrix_ids"' in skill
     assert "Не определять применимость" in skill
     assert "каждый пункт матрицы был классифицирован ровно как" in skill
@@ -62,31 +63,70 @@ def test_mapping_skill_contains_full_mapping_contract() -> None:
     assert '"missing_matrix_ids"' not in skill
     assert "/outputs/result.json" not in skill
     assert "/skills/contract-mapping/references/mapping-calibration.md" in skill
-    assert "продолжить поиск только для иных самостоятельных аспектов" in normalized_skill
-    assert "Не завершать инвентарь на основном тексте договора" in skill
+    assert "Для такого остаточного аспекта продолжить поиск" in normalized_skill
+    assert "Неполнота покрытия не уничтожает сильный mapping" in skill
+    assert "Для каждого предварительно отсутствующего ID выполнить одну обратную проверку" in normalized_skill
     assert "каждый пункт договора сопоставлять независимо" in skill
     assert "не выполнять отдельный recovery-проход" not in skill.lower()
+    assert "Пункты приложений и таблиц не включать в инвентарь" in skill
+    assert "Пункты приложений и таблиц не включать в инвентарь и не создавать для них отдельные contract-oriented группы" in normalized_skill
+    assert "наличие точного `contract_evidence_locator`" in skill
+    assert "Не агрегировать иерархию нумерации" in skill
+    assert "наиболее специфичному основному пункту" in normalized_skill
+    mapping_calibration = (
+        main.MAPPING_SKILL_SOURCE / "references" / "mapping-calibration.md"
+    ).read_text(encoding="utf-8")
+    assert "Включённый контекст приложения" in mapping_calibration
+    assert "Первый полный кандидат не всегда исчерпывает группу" in mapping_calibration
+    assert "Специальный механизм против общей темы" in mapping_calibration
+    assert "Иерархия нумерации не является одной группой" in mapping_calibration
+    assert "Семантически относящийся фрагмент приложения" in mapping_calibration
 
 
-def test_status_prompt_and_skill_integrate_targeted_recovery() -> None:
+def test_status_prompt_and_skill_define_single_raw_comparison_artifact() -> None:
     prompt = main.STATUS_SUBAGENT_PROMPT.lower()
     skill = (main.STATUS_SKILL_SOURCE / "SKILL.md").read_text(encoding="utf-8")
+    normalized_skill = " ".join(skill.split())
+    agents = main.AGENT_MEMORY_SOURCE.read_text(encoding="utf-8")
     assert "contract-group-status" in prompt
     assert "/outputs/working/mapping.json" in prompt
-    assert "/outputs/working/status-provisional.json" in prompt
-    assert "/outputs/working/mapping-adjustments.json" in prompt
     assert "/outputs/working/status.json" in prompt
-    assert "не выполняй полный mapping заново" in prompt
-    assert "локальным восстановлением mapping" in skill
-    assert "корреспондирующее право и обязанность" in skill
-    assert "применимый обязательный пункт матрицы остался без кандидата" in skill
-    assert "обрабатывать только элементы `recovery_queue`" in skill.lower()
-    assert "не запускать recovery только из-за отличия срока" in skill.lower()
-    assert "baseline-набору плюс" in skill
-    assert "нет `extra_in_contract` с кандидатами" in skill
-    assert '"schema_version": "status.v2"' in skill
+    assert "единственным подробным рабочим контрактом" in prompt
+    assert "не оценивай бизнес-значимость" in prompt
+    assert "/outputs/working/status-provisional.json" not in prompt
+    assert "/outputs/working/mapping-adjustments.json" not in prompt
+    assert "# Статус contract-oriented групп" in skill
+    assert "Выполнить одну задачу" in skill
+    assert "## Обязательный порядок" in skill
+    assert "прямого, корреспондирующего или инвертированного" in normalized_skill
+    assert "полный mapping заново" in skill
+    assert "узкий поиск только этого механизма" in normalized_skill
+    assert "внутри единого status-артефакта" in main.AGENT_MEMORY_SOURCE.read_text(encoding="utf-8")
+    assert '"schema_version": "status.v6"' in skill
+    assert "candidate_assessments" in skill
+    assert "contract_evidence" in skill
+    assert "operative_elements" in skill
+    assert "residual_assessment" in skill
+    assert "не создавать `remove`" in normalized_skill.lower()
     assert '"mapping_changes"' in skill
-    assert '"difference_basis"' in skill
+    assert '"differences"' not in skill
+    assert "difference_dimensions" not in skill
+    assert "status_reason" not in skill
+    assert "evaluated_matrix_ids" not in skill
+    assert '"dimension"' in skill
+    assert "конкретное значение только в одном источнике" in skill
+    assert "Два пустых значения не образуют" in skill
+    assert "Применимость matrix item определяется один раз" in skill
+    assert "данных недостаточно, чтобы уверенно исключить selector" in normalized_skill
+    assert "Корреспондирующее право кредитора" in skill
+    assert "отсутствие поясняющих слов" in skill.lower()
+    assert "ровно одно независимо опровергаемое" in skill
+    assert "каждый срок, дату, начало отсчёта, сумму, ставку и формулу" in skill
+    assert "Разложить весь исходный contract item" in skill
+    assert "не использовать предполагаемую законодательную эквивалентность" in agents
+    assert "не устанавливать содержание законов по внешним источникам" in normalized_skill.lower()
+    assert "не превращают доказанное текстовое отличие в `aligned`" in normalized_skill.lower()
+    assert "техническая возможность сами по себе не делают продукт применимым" in normalized_skill
     assert "final_unmapped_matrix_ids" not in skill
     assert all(status in skill for status in (
         "aligned", "deviation", "extra_in_contract", "missing_in_contract"
@@ -94,14 +134,23 @@ def test_status_prompt_and_skill_integrate_targeted_recovery() -> None:
     calibration = (
         main.STATUS_SKILL_SOURCE / "references" / "calibration.md"
     ).read_text(encoding="utf-8")
-    assert "корреспондирующие способы оплаты" in calibration
-    assert "документы приёмки" in calibration
-    assert "инверсия ролей" in calibration
-    assert "placeholder" in calibration
-    assert "альтернативы матрицы" in calibration
-    assert "неприменимый кандидат" in calibration
-    assert "законная конкретизация" in calibration
-    assert "исправление слабого baseline-кандидата" in calibration
+    assert "роли после нормализации" in calibration
+    assert "placeholder против значения" in calibration
+    assert "покрытие найдено в другом пункте" in calibration
+    assert "внутреннее включение" in calibration
+    assert "приложение и закрытый перечень" in calibration
+    assert "разрешённая альтернатива" in calibration
+    assert "baseline-кандидат не удаляется" in calibration
+    assert "отличие правового эффекта" in calibration
+    assert "ссылка на закон не отменяет сравнение" in calibration
+    assert "техническая возможность не означает применимость" in calibration
+    assert "CAL-24" in calibration
+    assert "CAL-25" in calibration
+    assert "CAL-26" in calibration
+    assert "outputs/working/status.json" in skill
+    assert "использовать относительные пути от корня workspace" in normalized_skill
+    assert "contract_value" not in calibration
+    assert "matrix_value" not in calibration
     for forbidden in ("gold", "KAVKAZ", "Кавказ", ".xlsx"):
         assert forbidden.casefold() not in calibration.casefold()
 
@@ -117,14 +166,15 @@ def test_orchestrator_contract_runs_mapping_then_status() -> None:
     assert "дождись завершения mapper" in prompt
     assert "после принятия карты один раз вызови subagent `status`" in normalized_prompt
     assert "не вызывай отдельного recovery-агента" in normalized_prompt
-    assert "baseline плюс зарегистрированные `add`" in normalized_prompt
+    assert "единый `/outputs/working/status.json`" in user_prompt
+    assert "после получения этого артефакта заверши работу" in normalized_prompt
     assert "mapping → status" in user_prompt
     assert "/inputs/contract.txt" in user_prompt
     assert "/inputs/matrix.json" in user_prompt
     assert "/outputs/working/mapping.json" in user_prompt
-    assert "/outputs/working/status-provisional.json" in user_prompt
-    assert "/outputs/working/mapping-adjustments.json" in user_prompt
     assert "/outputs/working/status.json" in user_prompt
+    assert "/outputs/working/status-provisional.json" not in user_prompt
+    assert "/outputs/working/mapping-adjustments.json" not in user_prompt
     combined = "\n".join((prompt, user_prompt))
     for inactive in ("/outputs/result.json", "mapping-recovered.json"):
         assert inactive not in combined
@@ -133,12 +183,16 @@ def test_orchestrator_contract_runs_mapping_then_status() -> None:
 def test_agents_memory_contains_stable_project_policy() -> None:
     memory = main.AGENT_MEMORY_SOURCE.read_text(encoding="utf-8")
     assert "промежуточную карту юридических аналогов" in memory
-    assert "Пункт договора — один исходный нумерованный пункт" in memory
+    assert "Пункт договора — один исходный нумерованный смысловой пункт основного текста" in memory
     assert "Пункт матрицы — один исходный объект" in memory
     assert "Сопоставление является many-to-many" in memory
+    assert "Приложения и таблицы не образуют contract-oriented групп" in memory
+    assert "Прямо включённый внутренней ссылкой смысл" in memory
+    assert "Каждый нумерованный подпункт образует собственную группу" in memory
     assert "Совпадение только общей темы" in memory
     assert "Mapping-этап не определяет применимость" in memory
     assert "Status-этап принимает карту" in memory
+    assert "не применяет правила бизнес-значимости" in memory
     assert "/outputs/" not in memory
     assert "Полный mapping заново не выполняется" in memory
 
@@ -318,42 +372,63 @@ def test_main_publishes_only_status_artifact(
         (workspace / "outputs" / "working" / "status.json").write_text(
             json.dumps(
                 {
-                    "schema_version": "status.v2",
+                    "schema_version": "status.v6",
                     "completion_status": "complete",
                     "mapping_changes": [],
-                    "contract_profile": {},
+                    "contract_profile": {
+                        "role_map": {
+                            "Банк": ["Банк"],
+                            "Предприятие": ["Предприятие"],
+                        }
+                    },
                     "groups": [
                         {
                             "contract_id": "1.1",
                             "contract_locator": "Основной текст, п. 1.1",
-                            "candidates": [],
-                            "evaluated_matrix_ids": [],
-                            "status": "extra_in_contract",
-                            "comment": "",
-                            "difference_basis": None,
-                            "source_kind": "main_body",
-                            "independent_legal_obligation": True,
+                            "candidates": [
+                                {"matrix_id": "2.1", "relation_type": "direct"}
+                            ],
+                            "candidate_assessments": [
+                                {
+                                    "matrix_id": "2.1",
+                                    "applicability": "applicable",
+                                    "status": "aligned",
+                                    "calibration_case_ids": [],
+                                    "checked_contract_context": ["п. 1.1"],
+                                    "operative_elements": [
+                                        {
+                                            "element": "оказание услуг",
+                                            "dimension": "obligation",
+                                            "matrix_quote": "Банк оказывает услуги",
+                                            "contract_evidence": [
+                                                {
+                                                    "contract_id": "1.1",
+                                                    "locator": "Основной текст, п. 1.1",
+                                                    "quote": "Банк оказывает услуги",
+                                                }
+                                            ],
+                                            "result": "same",
+                                            "explanation": "совпадает",
+                                        }
+                                    ],
+                                }
+                            ],
+                            "residual_assessment": {
+                                "status": "none",
+                                "remaining_scope": [],
+                            },
+                            "status": "aligned",
                         }
                     ],
-                    "matrix_review": [],
-                },
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
-        (workspace / "outputs" / "working" / "mapping-adjustments.json").write_text(
-            json.dumps(
-                {"completion_status": "complete", "changes": []},
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
-        (workspace / "outputs" / "working" / "status-provisional.json").write_text(
-            json.dumps(
-                {
-                    "completion_status": "complete",
-                    "groups": [],
-                    "recovery_queue": [],
+                    "matrix_review": [
+                        {
+                            "matrix_id": "2.1",
+                            "required_type": "mandatory",
+                            "applicability": "applicable",
+                            "coverage_status": "mapped",
+                            "reason": "покрыто",
+                        }
+                    ],
                 },
                 ensure_ascii=False,
             ),
@@ -374,6 +449,6 @@ def test_main_publishes_only_status_artifact(
     assert exit_code == 0
     result = json.loads(output.read_text(encoding="utf-8"))
     assert result["completion_status"] == "complete"
-    assert result["schema_version"] == "status.v2"
-    assert result["groups"][0]["status"] == "extra_in_contract"
+    assert result["schema_version"] == "status.v6"
+    assert result["groups"][0]["status"] == "aligned"
     assert sorted(path.name for path in output.parent.iterdir()) == ["result.json"]

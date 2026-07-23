@@ -50,24 +50,20 @@ MAPPING_SUBAGENT_PROMPT = """
 """.strip()
 
 STATUS_SUBAGENT_PROMPT = """
-Ты — специализированный subagent `status`. Выполни статусную оценку принятой
-карты и только необходимое для этой оценки локальное восстановление кандидатов.
+Ты — специализированный subagent `status`. Классифицируй готовую карту
+сопоставлений по полным текстам текущего договора и текущей матрицы.
 
 Перед содержательной работой обязательно прочитай и полностью выполни skill
-`contract-group-status`.
+`contract-group-status`: он является единственным подробным рабочим контрактом
+этого этапа.
 
 Входы: `/inputs/contract.txt`, `/inputs/matrix.json` и
 `/outputs/working/mapping.json`.
-Первый checkpoint: `/outputs/working/status-provisional.json`.
-Промежуточный результат: `/outputs/working/mapping-adjustments.json`.
 Итог этапа: `/outputs/working/status.json`.
 
-Не выполняй полный mapping заново и не формируй итоговый протокол. Если слабая,
-пустая или неполная группа мешает корректному статусу, восстанови только
-относящихся кандидатов по правилам skill и сохрани принятый состав внутри
-status-артефакта. Сначала зафиксируй предварительные статусы и recovery-очередь,
-затем все добавления и удаления, после чего пересчитай только затронутые группы.
-При успехе верни оркестратору пути ко всем трём файлам.
+Не оценивай бизнес-значимость и не формируй итоговый протокол. Заверши работу
+только после агентской самопроверки из skill. При успехе верни оркестратору
+только путь к status-файлу.
 """.strip()
 
 ORCHESTRATOR_SYSTEM_PROMPT = """
@@ -78,44 +74,24 @@ ORCHESTRATOR_SYSTEM_PROMPT = """
 построить полную карту в `/outputs/working/mapping.json`. Не дели договор или
 матрицу между вызовами и не выполняй юридическое сопоставление самостоятельно.
 
-Дождись завершения mapper, затем прочитай созданный JSON и проверь структурный
-контракт: валидный JSON, `schema_version: "mapping.v1"`,
-`completion_status: "complete"`, массивы `mappings` и `unmapped_matrix_ids`,
-отсутствие пересечения между mapped и unmapped matrix ID и точное покрытие их
-объединением всех `number` из матрицы. Это только структурная проверка — не
-пересматривай юридических кандидатов. При дефекте повторно вызови `mapping` с теми
-же входами и точным описанием дефекта.
+Дождись завершения mapper и прими карту только после того, как mapper выполнил
+собственную самопроверку из skill. Не пересматривай его юридические решения.
 
 После принятия карты один раз вызови subagent `status`. Передай ему все три пути и
 поручи определить применимость и статусы, точечно восстановив кандидатов только
 там, где это необходимо для решения. Не выполняй recovery самостоятельно и не
 вызывай отдельного recovery-агента.
 
-После завершения прочитай `/outputs/working/status-provisional.json`,
-`/outputs/working/mapping-adjustments.json` и `/outputs/working/status.json`.
-Проверь только структурный контракт: все три файла — валидный JSON с
-`completion_status: "complete"`; status имеет
-`schema_version: "status.v2"`, массивы `mapping_changes`, `groups` и
-`matrix_review`; `mapping_changes` дословно совпадает с `changes` промежуточного
-файла; число, порядок, `contract_id` и `contract_locator` групп совпадают с
-baseline; каждый `number` матрицы имеет ровно один `matrix_review`; каждый
-добавленный кандидат имеет непустые `contract_evidence` и `matrix_evidence`;
-каждый `deviation` имеет полный непустой `difference_basis`; незатронутые
-recovery-очередью группы совпадают с provisional по статусным полям; итоговые
-кандидаты каждой группы в точности равны baseline плюс зарегистрированные `add`
-минус `remove`; нет `extra_in_contract` с кандидатами и нет `aligned` или
-`deviation` без применимых `evaluated_matrix_ids`. При дефекте повторно вызови
-только `status` с точным описанием дефекта. Юридические решения самостоятельно не
-пересматривай.
+Дождись завершения status-сабагента и прими
+`/outputs/working/status.json` только после выполненной им самопроверки из skill.
+После получения этого артефакта заверши работу.
 """.strip()
 
 RUN_PROMPT = """
 Организуй последовательность mapping → status для `/inputs/contract.txt` и
 `/inputs/matrix.json`. Получи и прими `/outputs/working/mapping.json`, затем вызови
-status-сабагента и прими `/outputs/working/status.json`. Отдельный recovery-проход
-не запускай. До принятия status проверь также созданные им
-`/outputs/working/status-provisional.json` и
-`/outputs/working/mapping-adjustments.json`.
+status-сабагента и прими единый `/outputs/working/status.json`. Отдельный
+recovery-проход не запускай.
 """.strip()
 
 
@@ -336,7 +312,7 @@ class WindowsPowerShellBackend(LocalShellBackend):
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run the contract-to-matrix mapping phase and publish its JSON map."
+            "Run contract-to-matrix mapping and status phases and publish status JSON."
         )
     )
     parser.add_argument("--contract", type=Path, required=True, help="Path to TXT")
@@ -453,10 +429,9 @@ def build_agent(backend: WindowsPowerShellBackend):
             {
                 "name": "status",
                 "description": (
-                    "Определяет профиль, применимость и статусы принятой карты; "
-                    "локально восстанавливает кандидатов только для слабых, "
-                    "неполных и потенциально missing/extra групп; сохраняет "
-                    "журнал mapping-adjustments и /outputs/working/status.json."
+                    "Классифицирует каждую contract-oriented группу принятой "
+                    "карты и каждый пункт матрицы по обязательному порядку "
+                    "решения, сохраняя единый status.json."
                 ),
                 "system_prompt": STATUS_SUBAGENT_PROMPT,
                 "model": model,
@@ -510,8 +485,7 @@ def main(argv: list[str] | None = None) -> int:
         generated = workspace / "outputs" / "working" / "status.json"
         if not generated.is_file():
             raise RuntimeError(
-                "Agent finished without creating "
-                "/outputs/working/status.json"
+                "Agent finished without creating /outputs/working/status.json"
             )
         generated.replace(output)
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
