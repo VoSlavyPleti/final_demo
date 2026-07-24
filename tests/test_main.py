@@ -34,7 +34,10 @@ def test_mapping_prompt_delegates_method_to_its_skill() -> None:
     prompt = main.MAPPING_SUBAGENT_PROMPT.lower()
     assert "subagent `mapping`" in prompt
     assert "contract-mapping" in prompt
+    assert "main_idea" in prompt
     assert "обязательно прочитай и полностью выполни" in prompt
+    assert '"mapping.v1"' in prompt
+    assert "ровно один раз" in prompt
     assert "/inputs/contract.txt" in prompt
     assert "/inputs/matrix.json" in prompt
     assert "/outputs/working/mapping.json" in prompt
@@ -44,6 +47,10 @@ def test_mapping_prompt_delegates_method_to_its_skill() -> None:
 
 def test_mapping_skill_contains_full_mapping_contract() -> None:
     skill = (main.MAPPING_SKILL_SOURCE / "SKILL.md").read_text(encoding="utf-8")
+    normalized_skill = " ".join(skill.lower().split())
+    assert "main_idea" in normalized_skill
+    assert "дополнительный поисковый фокус" in normalized_skill
+    assert "не ограничивать поиск содержанием `main_idea`" in normalized_skill
     normalized_skill = " ".join(skill.split())
     assert "contract-oriented" in skill
     assert "many-to-many" in skill
@@ -66,6 +73,8 @@ def test_mapping_skill_contains_full_mapping_contract() -> None:
     assert "Для такого остаточного аспекта продолжить поиск" in normalized_skill
     assert "Неполнота покрытия не уничтожает сильный mapping" in skill
     assert "Для каждого предварительно отсутствующего ID выполнить одну обратную проверку" in normalized_skill
+    assert "один исходный `contract_id` должен встречаться в `mappings` ровно один раз" in normalized_skill
+    assert "функционально равнозначные способы исполнения" in normalized_skill
     assert "каждый пункт договора сопоставлять независимо" in skill
     assert "не выполнять отдельный recovery-проход" not in skill.lower()
     assert "Пункты приложений и таблиц не включать в инвентарь" in skill
@@ -81,18 +90,29 @@ def test_mapping_skill_contains_full_mapping_contract() -> None:
     assert "Специальный механизм против общей темы" in mapping_calibration
     assert "Иерархия нумерации не является одной группой" in mapping_calibration
     assert "Семантически относящийся фрагмент приложения" in mapping_calibration
+    assert "Обратный поиск платёжного механизма среди отвлекающих положений" in mapping_calibration
 
 
 def test_status_prompt_and_skill_define_single_raw_comparison_artifact() -> None:
     prompt = main.STATUS_SUBAGENT_PROMPT.lower()
     skill = (main.STATUS_SKILL_SOURCE / "SKILL.md").read_text(encoding="utf-8")
+    normalized_skill = " ".join(skill.lower().split())
+    assert "main_idea" in prompt
+    assert "обязательным отдельным входом решения о статусе" in normalized_skill
+    assert '"main_idea_assessment"' in skill
+    assert '"status_effect"' in skill
+    assert "не присваивать candidate status" in normalized_skill
+    assert "forces_deviation" in normalized_skill
+    assert "supports_aligned" in normalized_skill
     normalized_skill = " ".join(skill.split())
     agents = main.AGENT_MEMORY_SOURCE.read_text(encoding="utf-8")
     assert "contract-group-status" in prompt
     assert "/outputs/working/mapping.json" in prompt
     assert "/outputs/working/status.json" in prompt
     assert "единственным подробным рабочим контрактом" in prompt
-    assert "не оценивай бизнес-значимость" in prompt
+    assert "не назначай приоритет или уровень риска" in prompt
+    assert '"mapping.v1"' in prompt
+    assert "блокирующий дефект" in " ".join(prompt.split())
     assert "/outputs/working/status-provisional.json" not in prompt
     assert "/outputs/working/mapping-adjustments.json" not in prompt
     assert "# Статус contract-oriented групп" in skill
@@ -102,7 +122,7 @@ def test_status_prompt_and_skill_define_single_raw_comparison_artifact() -> None
     assert "полный mapping заново" in skill
     assert "узкий поиск только этого механизма" in normalized_skill
     assert "внутри единого status-артефакта" in main.AGENT_MEMORY_SOURCE.read_text(encoding="utf-8")
-    assert '"schema_version": "status.v6"' in skill
+    assert '"schema_version": "status.v7"' in skill
     assert "candidate_assessments" in skill
     assert "contract_evidence" in skill
     assert "operative_elements" in skill
@@ -114,7 +134,7 @@ def test_status_prompt_and_skill_define_single_raw_comparison_artifact() -> None
     assert "status_reason" not in skill
     assert "evaluated_matrix_ids" not in skill
     assert '"dimension"' in skill
-    assert "конкретное значение только в одном источнике" in skill
+    assert "требуемая матрицей сумма, ставка, срок, адресат" in skill
     assert "Два пустых значения не образуют" in skill
     assert "Применимость matrix item определяется один раз" in skill
     assert "данных недостаточно, чтобы уверенно исключить selector" in normalized_skill
@@ -125,12 +145,17 @@ def test_status_prompt_and_skill_define_single_raw_comparison_artifact() -> None
     assert "Разложить весь исходный contract item" in skill
     assert "не использовать предполагаемую законодательную эквивалентность" in agents
     assert "не устанавливать содержание законов по внешним источникам" in normalized_skill.lower()
-    assert "не превращают доказанное текстовое отличие в `aligned`" in normalized_skill.lower()
+    assert "не создают `deviation`" in normalized_skill.lower()
     assert "техническая возможность сами по себе не делают продукт применимым" in normalized_skill
     assert "final_unmapped_matrix_ids" not in skill
     assert all(status in skill for status in (
-        "aligned", "deviation", "extra_in_contract", "missing_in_contract"
+        "aligned", "deviation", "missing_in_contract", "not_applicable"
     ))
+    assert "extra_in_contract" not in skill
+    assert "optional_absent" not in skill
+    assert "neutral_extra" in skill
+    assert "adverse_extra" in skill
+    assert "deviation_types" in skill
     calibration = (
         main.STATUS_SKILL_SOURCE / "references" / "calibration.md"
     ).read_text(encoding="utf-8")
@@ -147,6 +172,10 @@ def test_status_prompt_and_skill_define_single_raw_comparison_artifact() -> None
     assert "CAL-24" in calibration
     assert "CAL-25" in calibration
     assert "CAL-26" in calibration
+    assert "CAL-27" in calibration
+    assert "CAL-28" in calibration
+    assert "CAL-29" in calibration
+    assert "CAL-30" in calibration
     assert "outputs/working/status.json" in skill
     assert "использовать относительные пути от корня workspace" in normalized_skill
     assert "contract_value" not in calibration
@@ -164,10 +193,13 @@ def test_orchestrator_contract_runs_mapping_then_status() -> None:
     assert "первым содержательным действием вызови subagent `mapping`" in prompt
     assert "не выполняй юридическое сопоставление самостоятельно" in prompt
     assert "дождись завершения mapper" in prompt
-    assert "после принятия карты один раз вызови subagent `status`" in normalized_prompt
+    assert 'schema_version == "mapping.v1"' in prompt
+    assert 'completion_status == "complete"' in prompt
+    assert "невалидную или незавершённую карту status-агенту не передавать" in normalized_prompt
+    assert "после принятия карты вызови subagent `status` для одной задачи" in normalized_prompt
     assert "не вызывай отдельного recovery-агента" in normalized_prompt
     assert "единый `/outputs/working/status.json`" in user_prompt
-    assert "после получения этого артефакта заверши работу" in normalized_prompt
+    assert "после получения валидного артефакта заверши работу" in normalized_prompt
     assert "mapping → status" in user_prompt
     assert "/inputs/contract.txt" in user_prompt
     assert "/inputs/matrix.json" in user_prompt
@@ -192,7 +224,7 @@ def test_agents_memory_contains_stable_project_policy() -> None:
     assert "Совпадение только общей темы" in memory
     assert "Mapping-этап не определяет применимость" in memory
     assert "Status-этап принимает карту" in memory
-    assert "не применяет правила бизнес-значимости" in memory
+    assert "не выбирает приоритет или необходимость включения пункта" in memory
     assert "/outputs/" not in memory
     assert "Полный mapping заново не выполняется" in memory
 
@@ -285,7 +317,8 @@ def test_build_agent_registers_mapping_and_status_specialists(
         "mapping",
         "status",
     ]
-    assert all(subagent["skills"] == ["/skills/"] for subagent in subagents)
+    assert subagents[0]["skills"] == ["/skills/contract-mapping/"]
+    assert subagents[1]["skills"] == ["/skills/contract-group-status/"]
     assert subagents[0]["system_prompt"] == main.MAPPING_SUBAGENT_PROMPT
     assert subagents[1]["system_prompt"] == main.STATUS_SUBAGENT_PROMPT
 
@@ -335,6 +368,44 @@ def test_windows_backend_reports_nonzero_exit(tmp_path: Path) -> None:
     assert "Exit code: 7" in response.output
 
 
+def test_mapping_validator_rejects_duplicate_contract_ids(tmp_path: Path) -> None:
+    artifact = tmp_path / "mapping.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema_version": "mapping.v1",
+                "completion_status": "complete",
+                "mappings": [
+                    {"contract_id": "4.4", "contract_locator": "п. 4.4", "candidates": []},
+                    {"contract_id": "4.4", "contract_locator": "п. 4.4", "candidates": []},
+                ],
+                "unmapped_matrix_ids": [],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="duplicate contract_id: 4.4"):
+        main.validate_mapping_artifact(artifact)
+
+
+def test_status_validator_rejects_in_progress_artifact(tmp_path: Path) -> None:
+    artifact = tmp_path / "status.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema_version": "status.v7",
+                "completion_status": "in_progress",
+                "groups": [],
+                "matrix_review": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="completion_status must be complete"):
+        main.validate_status_artifact(artifact)
+
+
 def test_main_publishes_only_status_artifact(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -372,7 +443,7 @@ def test_main_publishes_only_status_artifact(
         (workspace / "outputs" / "working" / "status.json").write_text(
             json.dumps(
                 {
-                    "schema_version": "status.v6",
+                    "schema_version": "status.v7",
                     "completion_status": "complete",
                     "mapping_changes": [],
                     "contract_profile": {
@@ -393,6 +464,7 @@ def test_main_publishes_only_status_artifact(
                                     "matrix_id": "2.1",
                                     "applicability": "applicable",
                                     "status": "aligned",
+                                    "deviation_types": [],
                                     "calibration_case_ids": [],
                                     "checked_contract_context": ["п. 1.1"],
                                     "operative_elements": [
@@ -449,6 +521,6 @@ def test_main_publishes_only_status_artifact(
     assert exit_code == 0
     result = json.loads(output.read_text(encoding="utf-8"))
     assert result["completion_status"] == "complete"
-    assert result["schema_version"] == "status.v6"
+    assert result["schema_version"] == "status.v7"
     assert result["groups"][0]["status"] == "aligned"
     assert sorted(path.name for path in output.parent.iterdir()) == ["result.json"]

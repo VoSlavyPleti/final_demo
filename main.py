@@ -39,7 +39,16 @@ MAPPING_SUBAGENT_PROMPT = """
 
 Перед содержательной работой обязательно прочитай и полностью выполни skill
 `contract-mapping`: он определяет метод сопоставления, схему результата и проверки
-полноты.
+полноты, включая использование заполненного `main_idea` как дополнительного
+поискового фокуса.
+
+Первым файловым действием прочитай `/skills/contract-mapping/SKILL.md` и
+указанную в нём calibration. Результат обязан иметь
+`schema_version: "mapping.v1"`, `completion_status: "complete"`,
+верхнеуровневые поля `mappings` и `unmapped_matrix_ids`. Каждый исходный
+`contract_id` должен встречаться в `mappings` ровно один раз; разные положения
+одного номера размещай в едином `candidates`. После записи перечитай JSON и
+исправь любое нарушение этой формы до возврата.
 
 Входы: `/inputs/contract.txt` и `/inputs/matrix.json`.
 Результат: `/outputs/working/mapping.json`.
@@ -55,36 +64,54 @@ STATUS_SUBAGENT_PROMPT = """
 
 Перед содержательной работой обязательно прочитай и полностью выполни skill
 `contract-group-status`: он является единственным подробным рабочим контрактом
-этого этапа.
+этого этапа, включая проверку выделенного в `main_idea` аспекта при определении
+статуса. Для каждого кандидата с непустым `main_idea` итоговый статус запрещено
+присваивать до заполнения `main_idea_assessment` по полным текстам источников.
+Результат этого assessment обязан участвовать в свёртке candidate status по
+правилам skill.
 
 Входы: `/inputs/contract.txt`, `/inputs/matrix.json` и
 `/outputs/working/mapping.json`.
 Итог этапа: `/outputs/working/status.json`.
 
-Не оценивай бизнес-значимость и не формируй итоговый протокол. Заверши работу
-только после агентской самопроверки из skill. При успехе верни оркестратору
-только путь к status-файлу.
+До анализа открой mapping и проверь `schema_version: "mapping.v1"`,
+`completion_status: "complete"`, наличие `mappings` и уникальность
+`contract_id`. При нарушении не создавай status: верни оркестратору блокирующий
+дефект, который должен исправить mapper.
+
+Не назначай приоритет или уровень риска и не формируй итоговый протокол.
+Классифицируй только по эталонным правилам `aligned / deviation /
+missing_in_contract / not_applicable` из skill. Заверши работу только после
+агентской самопроверки из skill. При успехе верни оркестратору только путь к
+status-файлу.
 """.strip()
 
 ORCHESTRATOR_SYSTEM_PROMPT = """
 Ты — оркестратор mapping и status-фаз. Постоянный профиль проекта загружен из
 `AGENTS.md`.
 
-Первым содержательным действием вызови subagent `mapping` ровно для одной задачи:
+Первым содержательным действием вызови subagent `mapping` для одной задачи:
 построить полную карту в `/outputs/working/mapping.json`. Не дели договор или
 матрицу между вызовами и не выполняй юридическое сопоставление самостоятельно.
 
-Дождись завершения mapper и прими карту только после того, как mapper выполнил
-собственную самопроверку из skill. Не пересматривай его юридические решения.
+Дождись завершения mapper. До перехода к status самостоятельно проверь только
+артефактный контракт: JSON читается, `schema_version == "mapping.v1"`,
+`completion_status == "complete"`, верхний уровень содержит `mappings` и
+`unmapped_matrix_ids`, каждый `contract_id` уникален, а внутри группы нет повтора
+`matrix_id`. Не пересматривай юридические решения. Если контракт нарушен,
+повторно вызови того же mapper только для ремонта файла по тому же пути и снова
+выполни проверку. Невалидную или незавершённую карту status-агенту не передавать.
 
-После принятия карты один раз вызови subagent `status`. Передай ему все три пути и
+После принятия карты вызови subagent `status` для одной задачи. Передай ему все три пути и
 поручи определить применимость и статусы, точечно восстановив кандидатов только
 там, где это необходимо для решения. Не выполняй recovery самостоятельно и не
 вызывай отдельного recovery-агента.
 
-Дождись завершения status-сабагента и прими
-`/outputs/working/status.json` только после выполненной им самопроверки из skill.
-После получения этого артефакта заверши работу.
+Дождись завершения status-сабагента и прими `/outputs/working/status.json` только
+если JSON читается, `schema_version == "status.v7"` и
+`completion_status == "complete"`. При нарушении верни файл тому же
+status-сабагенту для ремонта; незавершённый результат не принимать. После
+получения валидного артефакта заверши работу.
 """.strip()
 
 RUN_PROMPT = """
@@ -366,6 +393,100 @@ def prepare_workspace(
     return workspace, output
 
 
+def _read_json_artifact(path: Path, label: str) -> dict:
+    if not path.is_file():
+        raise RuntimeError(f"{label} artifact does not exist: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"{label} artifact is not valid UTF-8 JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"{label} artifact must be a JSON object: {path}")
+    return payload
+
+
+def validate_mapping_artifact(path: Path) -> dict:
+    payload = _read_json_artifact(path, "Mapping")
+    if payload.get("schema_version") != "mapping.v1":
+        raise RuntimeError("Mapping schema_version must be mapping.v1")
+    if payload.get("completion_status") != "complete":
+        raise RuntimeError("Mapping completion_status must be complete")
+    mappings = payload.get("mappings")
+    unmapped = payload.get("unmapped_matrix_ids")
+    if not isinstance(mappings, list) or not isinstance(unmapped, list):
+        raise RuntimeError(
+            "Mapping must contain mappings and unmapped_matrix_ids arrays"
+        )
+
+    contract_ids: set[str] = set()
+    mapped_matrix_ids: set[str] = set()
+    for index, group in enumerate(mappings):
+        if not isinstance(group, dict):
+            raise RuntimeError(f"Mapping group {index} must be an object")
+        contract_id = group.get("contract_id")
+        candidates = group.get("candidates")
+        if not isinstance(contract_id, str) or not contract_id.strip():
+            raise RuntimeError(f"Mapping group {index} has invalid contract_id")
+        if contract_id in contract_ids:
+            raise RuntimeError(f"Mapping contains duplicate contract_id: {contract_id}")
+        contract_ids.add(contract_id)
+        if not isinstance(candidates, list):
+            raise RuntimeError(f"Mapping group {contract_id} candidates must be an array")
+        group_matrix_ids: set[str] = set()
+        for candidate_index, candidate in enumerate(candidates):
+            if not isinstance(candidate, dict):
+                raise RuntimeError(
+                    f"Mapping candidate {contract_id}[{candidate_index}] must be an object"
+                )
+            matrix_id = candidate.get("matrix_id")
+            if not isinstance(matrix_id, str) or not matrix_id.strip():
+                raise RuntimeError(
+                    f"Mapping candidate {contract_id}[{candidate_index}] "
+                    "has invalid matrix_id"
+                )
+            if matrix_id in group_matrix_ids:
+                raise RuntimeError(
+                    f"Mapping group {contract_id} repeats matrix_id: {matrix_id}"
+                )
+            group_matrix_ids.add(matrix_id)
+            mapped_matrix_ids.add(matrix_id)
+
+    if any(not isinstance(item, str) or not item.strip() for item in unmapped):
+        raise RuntimeError("Mapping unmapped_matrix_ids must contain non-empty strings")
+    if len(unmapped) != len(set(unmapped)):
+        raise RuntimeError("Mapping unmapped_matrix_ids contains duplicates")
+    overlap = mapped_matrix_ids.intersection(unmapped)
+    if overlap:
+        raise RuntimeError(
+            "Mapping matrix IDs cannot be both mapped and unmapped: "
+            + ", ".join(sorted(overlap))
+        )
+    return payload
+
+
+def validate_status_artifact(path: Path) -> dict:
+    payload = _read_json_artifact(path, "Status")
+    if payload.get("schema_version") != "status.v7":
+        raise RuntimeError("Status schema_version must be status.v7")
+    if payload.get("completion_status") != "complete":
+        raise RuntimeError("Status completion_status must be complete")
+    groups = payload.get("groups")
+    matrix_review = payload.get("matrix_review")
+    if not isinstance(groups, list) or not isinstance(matrix_review, list):
+        raise RuntimeError("Status must contain groups and matrix_review arrays")
+    contract_ids: set[str] = set()
+    for index, group in enumerate(groups):
+        if not isinstance(group, dict):
+            raise RuntimeError(f"Status group {index} must be an object")
+        contract_id = group.get("contract_id")
+        if not isinstance(contract_id, str) or not contract_id.strip():
+            raise RuntimeError(f"Status group {index} has invalid contract_id")
+        if contract_id in contract_ids:
+            raise RuntimeError(f"Status contains duplicate contract_id: {contract_id}")
+        contract_ids.add(contract_id)
+    return payload
+
+
 def build_backend(workspace: Path) -> WindowsPowerShellBackend:
     shell_env = {
         key: os.environ[key]
@@ -424,7 +545,7 @@ def build_agent(backend: WindowsPowerShellBackend):
                 ),
                 "system_prompt": MAPPING_SUBAGENT_PROMPT,
                 "model": model,
-                "skills": ["/skills/"],
+                "skills": ["/skills/contract-mapping/"],
             },
             {
                 "name": "status",
@@ -435,7 +556,7 @@ def build_agent(backend: WindowsPowerShellBackend):
                 ),
                 "system_prompt": STATUS_SUBAGENT_PROMPT,
                 "model": model,
-                "skills": ["/skills/"],
+                "skills": ["/skills/contract-group-status/"],
             },
         ],
     )
@@ -482,11 +603,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         workspace, output = prepare_workspace(args.contract, args.matrix, args.output)
         run_agent(workspace)
+        validate_mapping_artifact(workspace / "outputs" / "working" / "mapping.json")
         generated = workspace / "outputs" / "working" / "status.json"
-        if not generated.is_file():
-            raise RuntimeError(
-                "Agent finished without creating /outputs/working/status.json"
-            )
+        validate_status_artifact(generated)
         generated.replace(output)
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
