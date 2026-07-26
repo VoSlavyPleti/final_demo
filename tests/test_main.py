@@ -34,18 +34,16 @@ def _inputs(tmp_path: Path) -> tuple[Path, Path]:
 
 def test_analysis_prompt_runs_analyzer_then_final_reviewer() -> None:
     prompt = main.ANALYSIS_SYSTEM_PROMPT.lower()
-    assert "оркестратор полного сравнения договора" in prompt
-    assert "integrated-contract-analysis" in prompt
-    assert "final-finding-review" in prompt
+    assert "оркестратор двух последовательных задач" in prompt
     assert "analyzer" in prompt
     assert "final-reviewer" in prompt
-    assert "не дели" in prompt
-    assert "`analysis.v3`" in prompt
+    assert "не выполняй юридический анализ" in prompt
+    assert "не загружай исходные документы" in prompt
     assert "/inputs/contract.txt" in prompt
     assert "/inputs/matrix.json" in prompt
-    assert "/outputs/working/fragments/full-analysis.json" in prompt
     assert "/outputs/working/analysis.json" in prompt
     assert "/outputs/working/final-result.json" in prompt
+    assert "общем файловом backend" in prompt
     assert "/outputs/result.json" not in prompt
     assert "contract-oriented" not in prompt
     assert "many-to-many" not in prompt
@@ -54,18 +52,19 @@ def test_analysis_prompt_runs_analyzer_then_final_reviewer() -> None:
 def test_integrated_skill_defines_mapping_and_status_in_one_artifact() -> None:
     skill = (main.ANALYSIS_SKILL_SOURCE / "SKILL.md").read_text(encoding="utf-8")
     normalized_skill = " ".join(skill.lower().split())
-    assert "# Единый анализ договора по матрице" in skill
+    assert "# Сравнение договора с банковской матрицей" in skill
     assert "по пути, назначенному задачей" in normalized_skill
-    assert "одном непрерывном контексте" in normalized_skill
+    assert "не назначать окончательные статусы, пока не построены кандидаты" in normalized_skill
+    assert "проверить совокупное покрытие матрицы" in normalized_skill
     assert '"schema_version": "analysis.v3"' in skill
-    assert "одновременно проверить покрытие и достроить группу" in normalized_skill
+    assert "выполнить целевой recovery" in normalized_skill
     assert (
-        "при отсутствии такого кандидата проверить инвертированное положение"
+        "проверить корреспондирующее право/обязанность и инверсию"
         in normalized_skill
     )
-    assert "остаточный список" in normalized_skill
+    assert "проверить каждую рабочую строку матрицы" in normalized_skill
     assert "`missing_matrix_items`" in normalized_skill
-    assert "исключает `extra_in_contract`" in normalized_skill
+    assert "не может иметь пустой `candidates` и статус `extra_in_contract`" in normalized_skill
     assert '"differences"' in skill
     assert "deviation_matrix_ids" not in skill
     assert "relation_type" not in skill
@@ -98,18 +97,15 @@ def test_integrated_skill_defines_mapping_and_status_in_one_artifact() -> None:
 
 def test_run_contract_uses_analysis_then_conclusion() -> None:
     prompt = main.ANALYSIS_SYSTEM_PROMPT.lower()
-    normalized_prompt = " ".join(prompt.split())
     user_prompt = main.RUN_PROMPT.lower()
     assert "agents.md" not in prompt
-    assert "сначала ровно один раз вызови `analyzer`" in normalized_prompt
-    assert "ровно один раз вызови `final-reviewer`" in normalized_prompt
-    assert "analyzer → final-reviewer" in user_prompt
+    assert "1. вызови `analyzer`" in prompt
+    assert "2. после подтверждения завершения analyzer" in prompt
+    assert "запусти analyzer, затем final-reviewer" in user_prompt
     assert "/inputs/contract.txt" in user_prompt
     assert "/inputs/matrix.json" in user_prompt
-    assert "/outputs/working/fragments/full-analysis.json" in user_prompt
     assert "/outputs/working/analysis.json" in user_prompt
     assert "/outputs/working/final-result.json" in user_prompt
-    assert "все доказанные deviations" in user_prompt
     combined = "\n".join((prompt, user_prompt))
     for inactive in (
         "/outputs/result.json",
@@ -130,7 +126,7 @@ def test_prepare_workspace_installs_skills_and_inputs(tmp_path: Path) -> None:
         assert (workspace / "inputs" / "contract.txt").read_bytes() == contract.read_bytes()
         assert (workspace / "inputs" / "matrix.json").read_bytes() == matrix.read_bytes()
         assert (workspace / "outputs" / "working").is_dir()
-        assert (workspace / "outputs" / "working" / "fragments").is_dir()
+        assert not (workspace / "outputs" / "working" / "fragments").exists()
         analysis = workspace / "skills" / "integrated-contract-analysis" / "SKILL.md"
         assert analysis.is_file()
         assert (
@@ -230,10 +226,7 @@ def test_build_agent_registers_analyzer_and_final_reviewer(
     assert captured["model"] is model
     assert captured["backend"] is backend
     assert "memory" not in captured
-    assert captured["skills"] == [
-        "/skills/integrated-contract-analysis/",
-        "/skills/final-finding-review/",
-    ]
+    assert captured["skills"] == []
     assert captured["system_prompt"] == main.ANALYSIS_SYSTEM_PROMPT
     subagents = captured["subagents"]
     assert isinstance(subagents, list) and len(subagents) == 2
@@ -243,11 +236,8 @@ def test_build_agent_registers_analyzer_and_final_reviewer(
     assert analyzer["skills"] == ["/skills/integrated-contract-analysis/"]
     assert "tools" not in analyzer
     assert "/outputs/working/analysis.json" in main.ANALYZER_SYSTEM_PROMPT
-    assert "не создавай" in main.ANALYZER_SYSTEM_PROMPT.lower()
-    assert "/outputs/working/fragments/full-analysis.json" in (
-        main.ANALYZER_SYSTEM_PROMPT
-    )
-    assert "полный результат анализа" in main.ANALYZER_SYSTEM_PROMPT
+    assert "/outputs/working/fragments" not in main.ANALYZER_SYSTEM_PROMPT
+    assert "не возвращай анализ в сообщении" in main.ANALYZER_SYSTEM_PROMPT.lower()
     reviewer = subagents[1]
     assert reviewer["name"] == "final-reviewer"
     assert reviewer["system_prompt"] == main.FINAL_REVIEWER_SYSTEM_PROMPT
@@ -259,7 +249,7 @@ def test_build_agent_registers_analyzer_and_final_reviewer(
     )
     assert "/inputs/contract.txt" in main.FINAL_REVIEWER_SYSTEM_PROMPT
     assert "/inputs/matrix.json" in main.FINAL_REVIEWER_SYSTEM_PROMPT
-    assert "не меняй analysis" in main.FINAL_REVIEWER_SYSTEM_PROMPT.lower()
+    assert "не изменяй analysis" in main.FINAL_REVIEWER_SYSTEM_PROMPT.lower()
     assert len(main.FINAL_REVIEWER_SYSTEM_PROMPT.split()) < 60
 
 
@@ -621,6 +611,88 @@ def test_main_optionally_publishes_analysis_artifact(
         )
 
     monkeypatch.setattr(main, "run_agent", fake_run_agent)
+    exit_code = main.main(
+        [
+            "--contract",
+            str(contract),
+            "--matrix",
+            str(matrix),
+            "--output",
+            str(conclusion_output),
+            "--analysis-output",
+            str(analysis_output),
+        ]
+    )
+
+    assert exit_code == 0
+    assert json.loads(analysis_output.read_text(encoding="utf-8")) == analysis_payload
+    assert (
+        json.loads(conclusion_output.read_text(encoding="utf-8"))
+        == conclusion_payload
+    )
+
+
+def test_main_recovers_reviewer_from_valid_analysis_checkpoint(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    contract, matrix = _inputs(tmp_path)
+    conclusion_output = tmp_path / "published" / "result.json"
+    analysis_output = tmp_path / "published" / "analysis.json"
+    analysis_payload = {
+        "schema_version": "analysis.v3",
+        "completion_status": "complete",
+        "groups": [
+            {
+                "contract_id": "1.1",
+                "candidates": [],
+                "status": "extra_in_contract",
+                "contract_evidence": "Банк оказывает услуги",
+                "reason": "Аналог отсутствует",
+            }
+        ],
+        "missing_matrix_items": [],
+    }
+    conclusion_payload = {
+        "schema_version": "conclusion.v1",
+        "completion_status": "complete",
+        "findings": [
+            {
+                "status": "extra_in_contract",
+                "contract_items": [
+                    {"id": "1.1", "text": "Банк оказывает услуги"}
+                ],
+                "comment": "Аналог отсутствует",
+                "evidence": [
+                    {
+                        "contract_id": "1.1",
+                        "contract_quote": "Банк оказывает услуги",
+                    }
+                ],
+            }
+        ],
+    }
+
+    def fake_run_agent(workspace: Path) -> None:
+        analysis = workspace / "outputs" / "working" / "analysis.json"
+        analysis.write_text(
+            json.dumps(analysis_payload, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    def fake_run_final_reviewer(
+        workspace: Path, *, artifact_attempts: int = 3
+    ) -> None:
+        assert artifact_attempts == 3
+        analysis = workspace / "outputs" / "working" / "analysis.json"
+        assert json.loads(analysis.read_text(encoding="utf-8")) == analysis_payload
+        (workspace / "outputs" / "working" / "final-result.json").write_text(
+            json.dumps(conclusion_payload, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(main, "run_agent", fake_run_agent)
+    monkeypatch.setattr(main, "run_final_reviewer", fake_run_final_reviewer)
+
     exit_code = main.main(
         [
             "--contract",
