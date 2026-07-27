@@ -1,0 +1,84 @@
+{
+  "schema_version": "contract-review-benchmark.v1",
+  "created_from": "five formatted legal-review workbooks",
+  "mapping_gold": {
+    "orientation": "contract",
+    "soft_match_rule": "A contract group is correct when predicted matrix_ids intersect the candidate pool of the same gold contract group.",
+    "status_rule": "Status belongs to the contract group and is scored independently in every repeated matrix occurrence.",
+    "status": "requires_cross-version_id_audit",
+    "sources_are_authoritative_for_aligned_and_mapping": false,
+    "reason": "The formatted workbooks contain matrix identifiers from different matrix generations; they remain sources for priority deviation classes but cannot be merged into one mapping benchmark without ID reconciliation."
+  },
+  "missing_and_extra": {
+    "status": "requires_separate_legal_audit",
+    "reason": "Raw workbook sheets contain inapplicable product branches and non-actionable boilerplate and are not accepted automatically."
+  },
+  "documents": [
+    {
+      "document_id": "KAVKAZ",
+      "source": "gold_results/Kavkaz_analiz_formattirovannyi.xlsx",
+      "sha256": "cfea8a58c969bc64b9c7d7a7851eda4b7cdccf2e644d84853af3ae63321e42cc",
+      "priority_deviations": [
+        {"contract_id": "4.3", "matrix_ids": ["2.1"], "issue_class": "bank_right"},
+        {"contract_id": "4.4", "matrix_ids": ["4.2.12", "6.5"], "issue_class": "payment_mechanism"},
+        {"contract_id": "5.2.6", "matrix_ids": ["5.1.13"], "issue_class": "channel_or_form"},
+        {"contract_id": "5.3.15", "matrix_ids": ["4.2.16.3"], "issue_class": "deadline_or_date"},
+        {"contract_id": "5.7", "matrix_ids": ["4.2.20.7"], "issue_class": "amount_or_rate"}
+      ]
+    },
+    {
+      "document_id": "KUZBAS",
+      "source": "gold_results/kuzbas_stomat_analysis_v1.xlsx",
+      "sha256": "87cd56048df605878349303705161d81ca4ec8fb8c1d09e0da6b978f573eba8a",
+      "priority_deviations": [
+        {"contract_id": "2.3.5", "matrix_ids": ["2.3.5"], "issue_class": "channel_or_form"},
+        {"contract_id": "4.2.1", "matrix_ids": ["4.2.1"], "issue_class": "required_scope"},
+        {"contract_id": "4.2.17", "matrix_ids": ["4.2.17"], "issue_class": "required_scope"},
+        {"contract_id": "4.2.20.7", "matrix_ids": ["4.2.20.7"], "issue_class": "amount_or_rate"},
+        {"contract_id": "7.6.2", "matrix_ids": ["7.5", "7.6"], "issue_class": "amount_or_rate"}
+      ]
+    },
+    {
+      "document_id": "KALUGA",
+      "source": "gold_results/kaluga_stomat_analysis_v1.xlsx",
+      "sha256": "0491b469cbecab93e505c08d406168ebbda9f14bd5180b7ec281beb71a4dbcfc",
+      "priority_deviations": [
+        {"contract_id": "4.2.16", "matrix_ids": ["4.2.16", "4.2.16.1", "4.2.16.3"], "issue_class": "data_transfer"},
+        {"contract_id": "4.2.20.7", "matrix_ids": ["4.2.20.7"], "issue_class": "amount_or_rate"},
+        {"contract_id": "5.1.7", "matrix_ids": ["5.1.7"], "issue_class": "data_transfer"}
+      ]
+    },
+    {
+      "document_id": "IRKUTSK",
+      "source": "gold_results/irkutsk_infektsionka_analysis_v1.xlsx",
+      "sha256": "774d232bb3085137638a9b2c5820cfc54a8c40bcfd1b7493e0bef04c65b3db64",
+      "priority_deviations": [
+        {"contract_id": "2.3", "matrix_ids": ["4.2.12", "5.1.4"], "issue_class": "payment_mechanism"},
+        {"contract_id": "2.5", "matrix_ids": ["4.2.1", "4.2.12"], "issue_class": "deadline_or_date"},
+        {"contract_id": "3.1", "matrix_ids": ["10.1"], "issue_class": "required_scope"},
+        {"contract_id": "4.1.4", "matrix_ids": ["5.1.6"], "issue_class": "deadline_or_date"},
+        {"contract_id": "4.2.1.2", "matrix_ids": ["5.1.1.1"], "issue_class": "required_scope"},
+        {"contract_id": "4.4.4", "matrix_ids": ["4.2.5"], "issue_class": "required_scope"},
+        {"contract_id": "4.4.15", "matrix_ids": ["4.2.20.6", "4.2.18"], "issue_class": "deadline_or_date"},
+        {"contract_id": "9.2", "matrix_ids": ["8.2"], "issue_class": "deadline_or_date"},
+        {"contract_id": "11.3", "matrix_ids": ["9.1", "9.2"], "issue_class": "deadline_or_date"},
+        {"contract_id": "11.3.1", "matrix_ids": ["9.2"], "issue_class": "other_material"},
+        {"contract_id": "12.1", "matrix_ids": ["2.3", "2.3.1", "2.3.4"], "issue_class": "channel_or_form"}
+      ]
+    },
+    {
+      "document_id": "ALTAI",
+      "source": "gold_results/altai_transport_analysis_v1.xlsx",
+      "sha256": "45572c5d87912680910d5fb113b92b82d19c541b505764209f8777515b095add",
+      "priority_deviations": [
+        {"contract_id": "2.3", "matrix_ids": ["10.1"], "issue_class": "required_scope"},
+        {"contract_id": "4.1.1", "matrix_ids": ["5.1.1"], "issue_class": "required_scope"},
+        {"contract_id": "5.2", "matrix_ids": ["4.2.12"], "issue_class": "deadline_or_date"},
+        {"contract_id": "5.5", "matrix_ids": ["4.2.12"], "issue_class": "deadline_or_date"},
+        {"contract_id": "5.6", "matrix_ids": ["4.2.12"], "issue_class": "deadline_or_date"},
+        {"contract_id": "6.1", "matrix_ids": ["10.1"], "issue_class": "required_scope"},
+        {"contract_id": "9.1", "matrix_ids": ["9.1", "9.2"], "issue_class": "deadline_or_date"}
+      ]
+    }
+  ]
+}
