@@ -10,8 +10,8 @@
     "reason": "The formatted workbooks contain matrix identifiers from different matrix generations; they remain sources for priority deviation classes but cannot be merged into one mapping benchmark without ID reconciliation."
   },
   "missing_and_extra": {
-    "status": "requires_separate_legal_audit",
-    "reason": "Raw workbook sheets contain inapplicable product branches and non-actionable boilerplate and are not accepted automatically."
+    "status": "full_ledger_required",
+    "reason": "Every matrix row and every numbered contract item must remain in the analysis; applicability, absence and lack of an analog are explicit scored outcomes rather than pre-output filters."
   },
   "documents": [
     {

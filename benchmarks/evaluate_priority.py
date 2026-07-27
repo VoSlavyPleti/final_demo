@@ -12,9 +12,15 @@ def _ids(values: object) -> set[str]:
 
 
 def _candidate_ids(group: dict) -> set[str]:
+    values = group.get("matrix_ids")
+    if isinstance(values, list):
+        return _ids(values)
+    values = group.get("matrix_analogs")
+    if not isinstance(values, list):
+        values = group.get("candidates", [])
     return {
         str(candidate.get("matrix_id", "")).rstrip(".")
-        for candidate in group.get("candidates", [])
+        for candidate in values
         if isinstance(candidate, dict) and candidate.get("matrix_id")
     }
 
@@ -56,9 +62,14 @@ def main() -> int:
         raise SystemExit(f"Unknown document: {args.document}")
 
     analysis = json.loads(args.analysis.read_text(encoding="utf-8"))
+    group_values = analysis.get("contract_items")
+    if not isinstance(group_values, list):
+        group_values = analysis.get("comparison_groups")
+    if not isinstance(group_values, list):
+        group_values = analysis.get("groups", [])
     groups = {
         str(group.get("contract_id", "")).rstrip("."): group
-        for group in analysis.get("groups", [])
+        for group in group_values
         if isinstance(group, dict) and group.get("contract_id")
     }
     gold = document["priority_deviations"]
@@ -110,6 +121,29 @@ def main() -> int:
             len(predicted_deviations),
         ),
         "predicted_deviation_count": len(predicted_deviations),
+        "missing_matrix_count": (
+            sum(
+                (
+                    item.get("status")
+                    if "status" in item
+                    else item.get("resolution")
+                )
+                == "missing_in_contract"
+                for item in analysis.get("matrix_items", [])
+                if isinstance(item, dict)
+            )
+            if isinstance(analysis.get("matrix_items"), list)
+            else len(analysis.get("missing_matrix_items", []))
+        ),
+        "extra_contract_count": (
+            sum(
+                item.get("status") == "extra_in_contract"
+                for item in analysis.get("contract_items", [])
+                if isinstance(item, dict)
+            )
+            if isinstance(analysis.get("contract_items"), list)
+            else len(analysis.get("extra_contract_items", []))
+        ),
         "errors": [row for row in rows if not row["joint_hit"]],
     }
 

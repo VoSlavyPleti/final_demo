@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -19,111 +20,37 @@ from deepagents import create_deep_agent
 from deepagents.backends import LocalShellBackend
 from deepagents.backends.protocol import ExecuteResponse
 from langchain_core.callbacks import BaseCallbackHandler
+from langgraph.checkpoint.memory import MemorySaver
 
 from llm import get_llm
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-PRIMARY_SKILL_SOURCE = PROJECT_ROOT / "skills" / "primary-contract-analysis"
-GAP_SKILL_SOURCE = PROJECT_ROOT / "skills" / "matrix-gap-recovery"
-SELECTION_SKILL_SOURCE = PROJECT_ROOT / "skills" / "final-finding-selection"
-SKILL_SOURCES = (
-    PRIMARY_SKILL_SOURCE,
-    GAP_SKILL_SOURCE,
-    SELECTION_SKILL_SOURCE,
-)
+DOMAIN_SKILL_SOURCE = PROJECT_ROOT / "skills" / "contract-matrix-review"
+SKILL_SOURCES = (DOMAIN_SKILL_SOURCE,)
 
-PRIMARY_ARTIFACT = Path("outputs/working/primary-analysis.json")
-COMPLETE_ARTIFACT = Path("outputs/working/complete-analysis.json")
-FINAL_ARTIFACT = Path("outputs/working/final-result.json")
+RESULT_ARTIFACT = Path("outputs/result.json")
+RUN_MANIFEST = Path("outputs/run-manifest.json")
 
 
-ORCHESTRATOR_SYSTEM_PROMPT = """
-Ты маршрутизируешь три последовательных файловых этапа. Не выполняй
-юридический анализ и не читай исходные документы или содержимое артефактов.
+AGENT_SYSTEM_PROMPT = """
+Ты — агент сравнения проектов договоров с банковской матрицей.
 
-1. Вызови `primary-analyzer` с входами `/inputs/contract.txt`,
-   `/inputs/matrix.json` и выходом
-   `/outputs/working/primary-analysis.json`.
-2. Только после успешного завершения вызови `matrix-gap-recovery` с этим
-   артефактом, теми же входами и выходом
-   `/outputs/working/complete-analysis.json`.
-3. Только после успешного завершения вызови `final-selector` с
-   `/outputs/working/complete-analysis.json` и выходом
-   `/outputs/working/final-result.json`.
+Исходники находятся в `/inputs/contract.txt` и `/inputs/matrix.json`.
+Результат должен быть записан в `/outputs/result.json`.
+Для анализа обязательно используй skill `/skills/contract-matrix-review/`.
+При делегировании анализа укажи subagent использовать этот же skill.
 
-Все роли используют общий файловый backend. Не копируй содержимое артефактов в
-сообщения и не заменяй назначенные роли general-purpose агентом. При ошибке
-этапа прекрати сценарий. При успехе верни только путь итогового файла.
+В сообщении верни только краткое подтверждение и путь.
 """.strip()
 
 RUN_PROMPT = """
-Выполни `primary-analyzer`, затем `matrix-gap-recovery`, затем
-`final-selector`. Используй только назначенные пути:
-
-- `/inputs/contract.txt`;
-- `/inputs/matrix.json`;
-- `/outputs/working/primary-analysis.json`;
-- `/outputs/working/complete-analysis.json`;
-- `/outputs/working/final-result.json`.
+Сравни проект договора с банковской матрицей.
+Сохрани результат в `/outputs/result.json`.
 """.strip()
-
-PRIMARY_ONLY_ORCHESTRATOR_SYSTEM_PROMPT = """
-Ты маршрутизируешь один этап. Не выполняй юридический анализ и не читай
-исходные документы. Вызови только `primary-analyzer` для
-`/inputs/contract.txt` и `/inputs/matrix.json` с выходом
-`/outputs/working/primary-analysis.json`. После завершения верни только путь
-артефакта. Не вызывай другие роли или general-purpose агента.
-""".strip()
-
-PRIMARY_ONLY_RUN_PROMPT = """
-Вызови только `primary-analyzer` и получи
-`/outputs/working/primary-analysis.json` для `/inputs/contract.txt` и
-`/inputs/matrix.json`.
-""".strip()
-
-SELECTION_ONLY_ORCHESTRATOR_SYSTEM_PROMPT = """
-Ты маршрутизируешь один этап. Не выполняй юридический анализ и не читай
-содержимое артефакта. Вызови только `final-selector` для
-`/outputs/working/complete-analysis.json` с выходом
-`/outputs/working/final-result.json`. После завершения верни только путь
-итогового файла. Не вызывай другие роли или general-purpose агента.
-""".strip()
-
-SELECTION_ONLY_RUN_PROMPT = """
-Вызови только `final-selector` для
-`/outputs/working/complete-analysis.json` и получи
-`/outputs/working/final-result.json`.
-""".strip()
-
-PRIMARY_SYSTEM_PROMPT = """
-Выполни `/skills/primary-contract-analysis/SKILL.md` для назначенных входов.
-Запиши валидный `primary-analysis.v1` строго в
-`/outputs/working/primary-analysis.json`. Перед завершением собери сохранённые
-порции, сверь итог со своим полным реестром пунктов и прочитай файл обратно. Не
-помечай префикс договора как complete. Не возвращай анализ в сообщении; верни
-путь и краткое подтверждение завершения.
-""".strip()
-
-GAP_SYSTEM_PROMPT = """
-Выполни `/skills/matrix-gap-recovery/SKILL.md` для назначенного primary
-артефакта и исходных входов. Запиши валидный `complete-analysis.v1` строго в
-`/outputs/working/complete-analysis.json`. Перед завершением прочитай файл
-обратно. Не возвращай анализ в сообщении; верни путь и краткое подтверждение
-завершения.
-""".strip()
-
-SELECTION_SYSTEM_PROMPT = """
-Выполни `/skills/final-finding-selection/SKILL.md` для назначенного complete
-analysis. Запиши валидный `conclusion.v2` строго в
-`/outputs/working/final-result.json`. Перед завершением прочитай файл обратно.
-Не возвращай findings в сообщении; верни путь и краткое подтверждение
-завершения.
-""".strip()
-
 
 class CompactTraceHandler(BaseCallbackHandler):
-    """Emit timing events without prompt or tool payloads."""
+    """Emit timing events without prompts, source text, or tool payloads."""
 
     run_inline = True
 
@@ -339,20 +266,26 @@ class WindowsPowerShellBackend(LocalShellBackend):
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run contract review and publish a conclusion.v2 JSON artifact."
+        description="Run the autonomous contract-matrix Deep Agent harness."
     )
     parser.add_argument("--contract", type=Path, required=True, help="Path to TXT")
     parser.add_argument("--matrix", type=Path, required=True, help="Path to JSON")
-    parser.add_argument("--output", type=Path, required=True, help="Conclusion JSON")
     parser.add_argument(
-        "--analysis-output",
+        "--output",
         type=Path,
-        help="Optional path for publishing complete-analysis.v1",
+        required=True,
+        help="Full contract-matrix mapping JSON",
     )
     parser.add_argument(
-        "--primary-output",
-        type=Path,
-        help="Optional path for publishing primary-analysis.v1",
+        "--keep-workspace",
+        action="store_true",
+        help="Preserve the temporary workspace after a successful run",
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=3,
+        help="Maximum transient API retries; default: 3",
     )
     return parser.parse_args(argv)
 
@@ -374,7 +307,7 @@ def _resolve_json_output(path: Path, label: str) -> Path:
 
 def prepare_workspace(
     contract: Path, matrix: Path, output: Path
-) -> tuple[Path, Path]:
+) -> tuple[Path, Path, Path, Path]:
     contract = _resolve_input(contract, "Contract")
     matrix = _resolve_input(matrix, "Matrix")
     if contract.suffix.lower() != ".txt":
@@ -385,50 +318,22 @@ def prepare_workspace(
     if output in {contract, matrix}:
         raise ValueError("Output path must differ from both input paths")
 
-    for skill_source in SKILL_SOURCES:
-        required = skill_source / "SKILL.md"
-        if not required.is_file():
-            raise FileNotFoundError(f"Required agent file does not exist: {required}")
+    required_skill = DOMAIN_SKILL_SOURCE / "SKILL.md"
+    if not required_skill.is_file():
+        raise FileNotFoundError(f"Required agent file does not exist: {required_skill}")
 
     workspace = Path(tempfile.mkdtemp(prefix="contract-review-"))
     (workspace / "inputs").mkdir(parents=True)
     (workspace / "outputs" / "working").mkdir(parents=True)
-    for skill_source in SKILL_SOURCES:
-        shutil.copytree(
-            skill_source,
-            workspace / "skills" / skill_source.name,
-        )
-    shutil.copyfile(contract, workspace / "inputs" / "contract.txt")
-    shutil.copyfile(matrix, workspace / "inputs" / "matrix.json")
-    return workspace, output
-
-
-def resolve_publish_outputs(
-    *,
-    primary_path: Path | None,
-    analysis_path: Path | None,
-    contract: Path,
-    matrix: Path,
-    conclusion_output: Path,
-) -> tuple[Path | None, Path | None]:
-    forbidden = {
-        contract.expanduser().resolve(),
-        matrix.expanduser().resolve(),
-        conclusion_output.expanduser().resolve(),
-    }
-
-    def resolve(path: Path | None, label: str) -> Path | None:
-        if path is None:
-            return None
-        resolved = _resolve_json_output(path, label)
-        if resolved in forbidden:
-            raise ValueError(f"{label} must differ from inputs and other outputs")
-        forbidden.add(resolved)
-        return resolved
-
-    primary_output = resolve(primary_path, "Primary output")
-    analysis_output = resolve(analysis_path, "Analysis output")
-    return primary_output, analysis_output
+    shutil.copytree(
+        DOMAIN_SKILL_SOURCE,
+        workspace / "skills" / DOMAIN_SKILL_SOURCE.name,
+    )
+    mounted_contract = workspace / "inputs" / "contract.txt"
+    mounted_matrix = workspace / "inputs" / "matrix.json"
+    shutil.copyfile(contract, mounted_contract)
+    shutil.copyfile(matrix, mounted_matrix)
+    return workspace, output, contract, matrix
 
 
 def _read_json_artifact(path: Path, label: str) -> dict:
@@ -443,49 +348,94 @@ def _read_json_artifact(path: Path, label: str) -> dict:
     return payload
 
 
-def _validate_common(
-    path: Path,
-    *,
-    label: str,
-    schema_version: str,
-    list_fields: tuple[str, ...],
-) -> dict:
-    payload = _read_json_artifact(path, label)
-    if payload.get("schema_version") != schema_version:
-        raise RuntimeError(f"{label} schema_version must be {schema_version}")
+def _require_list(payload: dict, field: str, label: str) -> list:
+    value = payload.get(field)
+    if not isinstance(value, list):
+        raise RuntimeError(f"{label} field {field!r} must be an array")
+    return value
+
+
+def validate_result_artifact(path: Path) -> dict:
+    """Validate only the transport/schema contract, never legal conclusions."""
+
+    payload = _read_json_artifact(path, "Result")
+    if payload.get("schema_version") != "contract-matrix-map.v3":
+        raise RuntimeError(
+            "Result schema_version must be contract-matrix-map.v3"
+        )
     if payload.get("completion_status") != "complete":
-        raise RuntimeError(f"{label} completion_status must be complete")
-    for field in list_fields:
-        if not isinstance(payload.get(field), list):
-            raise RuntimeError(f"{label} field {field!r} must be an array")
+        raise RuntimeError("Result completion_status must be complete")
+
+    contract_items = _require_list(payload, "contract_items", "Result")
+    matrix_items = _require_list(payload, "matrix_items", "Result")
+
+    contract_ids: set[str] = set()
+    referenced_matrix_ids: set[str] = set()
+    for index, item in enumerate(contract_items):
+        label = f"Result contract_items[{index}]"
+        if not isinstance(item, dict):
+            raise RuntimeError(f"{label} must be an object")
+        if not isinstance(item.get("contract_id"), str) or not item["contract_id"]:
+            raise RuntimeError(f"{label} contract_id is required")
+        if item["contract_id"] in contract_ids:
+            raise RuntimeError(f"{label} duplicates contract_id")
+        contract_ids.add(item["contract_id"])
+        if not isinstance(item.get("contract_text"), str):
+            raise RuntimeError(f"{label} contract_text is required")
+        if item.get("status") not in {
+            "aligned",
+            "deviation",
+            "extra_in_contract",
+            "not_applicable",
+        }:
+            raise RuntimeError(f"{label} has invalid status")
+        matrix_ids = _require_list(item, "matrix_ids", label)
+        if len(matrix_ids) != len(set(matrix_ids)):
+            raise RuntimeError(f"{label} contains duplicate matrix_ids")
+        for matrix_index, matrix_id in enumerate(matrix_ids):
+            if not isinstance(matrix_id, str) or not matrix_id:
+                raise RuntimeError(
+                    f"{label}.matrix_ids[{matrix_index}] is invalid"
+                )
+            referenced_matrix_ids.add(matrix_id)
+        if (
+            not isinstance(item.get("comment"), str)
+            or not item["comment"].strip()
+        ):
+            raise RuntimeError(f"{label} comment is required")
+
+    matrix_ids: set[str] = set()
+    for index, item in enumerate(matrix_items):
+        label = f"Result matrix_items[{index}]"
+        if not isinstance(item, dict):
+            raise RuntimeError(f"{label} must be an object")
+        if not isinstance(item.get("matrix_id"), str) or not item["matrix_id"]:
+            raise RuntimeError(f"{label} matrix_id is required")
+        if item["matrix_id"] in matrix_ids:
+            raise RuntimeError(f"{label} duplicates matrix_id")
+        matrix_ids.add(item["matrix_id"])
+        if not isinstance(item.get("matrix_text"), str):
+            raise RuntimeError(f"{label} matrix_text is required")
+        if item.get("required_type") != "mandatory":
+            raise RuntimeError(f"{label} required_type must be mandatory")
+        if item.get("status") != "missing_in_contract":
+            raise RuntimeError(
+                f"{label} status must be missing_in_contract"
+            )
+        if (
+            not isinstance(item.get("comment"), str)
+            or not item["comment"].strip()
+        ):
+            raise RuntimeError(f"{label} comment is required")
+
+    conflicting_matrix_ids = referenced_matrix_ids & matrix_ids
+    if conflicting_matrix_ids:
+        raise RuntimeError(
+            "Result matrix_items contain matrix_ids already referenced by "
+            "contract_items: "
+            + ", ".join(sorted(conflicting_matrix_ids))
+        )
     return payload
-
-
-def validate_primary_artifact(path: Path) -> dict:
-    return _validate_common(
-        path,
-        label="Primary analysis",
-        schema_version="primary-analysis.v1",
-        list_fields=("groups",),
-    )
-
-
-def validate_complete_artifact(path: Path) -> dict:
-    return _validate_common(
-        path,
-        label="Complete analysis",
-        schema_version="complete-analysis.v1",
-        list_fields=("groups", "matrix_audit"),
-    )
-
-
-def validate_conclusion_artifact(path: Path) -> dict:
-    return _validate_common(
-        path,
-        label="Conclusion",
-        schema_version="conclusion.v2",
-        list_fields=("findings",),
-    )
 
 
 def build_backend(workspace: Path) -> WindowsPowerShellBackend:
@@ -520,67 +470,33 @@ def build_backend(workspace: Path) -> WindowsPowerShellBackend:
     )
 
 
-def _subagent_definitions() -> list[dict]:
-    return [
-        {
-            "name": "primary-analyzer",
-            "description": (
-                "Строит contract-oriented many-to-many mapping и сразу "
-                "назначает aligned, deviation или provisional extra; пишет "
-                "primary-analysis.v1."
-            ),
-            "system_prompt": PRIMARY_SYSTEM_PROMPT,
-            "skills": ["/skills/primary-contract-analysis/"],
-        },
-        {
-            "name": "matrix-gap-recovery",
-            "description": (
-                "Проверяет только непокрытые matrix ID, absent-аспекты и "
-                "provisional extra; восстанавливает связи и пишет "
-                "complete-analysis.v1."
-            ),
-            "system_prompt": GAP_SYSTEM_PROMPT,
-            "skills": ["/skills/matrix-gap-recovery/"],
-        },
-        {
-            "name": "final-selector",
-            "description": (
-                "Не меняя mapping и статусы, отбирает значимые deviation, "
-                "mandatory missing и самостоятельные extra; пишет conclusion.v2."
-            ),
-            "system_prompt": SELECTION_SYSTEM_PROMPT,
-            "skills": ["/skills/final-finding-selection/"],
-        },
-    ]
-
-
 def build_agent(
     backend: WindowsPowerShellBackend,
     *,
-    system_prompt: str = ORCHESTRATOR_SYSTEM_PROMPT,
+    checkpointer=None,
 ):
     return create_deep_agent(
-        name="contract-review-orchestrator",
+        name="contract-matrix-review-agent",
         model=get_llm(),
-        system_prompt=system_prompt,
+        system_prompt=AGENT_SYSTEM_PROMPT,
         backend=backend,
-        skills=[],
-        subagents=_subagent_definitions(),
+        skills=["/skills/contract-matrix-review/"],
+        checkpointer=checkpointer or MemorySaver(),
     )
 
 
 def run_agent(
     workspace: Path,
     *,
-    run_prompt: str = RUN_PROMPT,
-    system_prompt: str = ORCHESTRATOR_SYSTEM_PROMPT,
+    max_retries: int = 3,
+    thread_id: str | None = None,
+    sleep=time.sleep,
 ) -> None:
-    agent = build_agent(
-        build_backend(workspace),
-        system_prompt=system_prompt,
-    )
-    retry_number = 0
-    thread_id = uuid.uuid4().hex
+    if max_retries < 0:
+        raise ValueError("max_retries must be non-negative")
+
+    agent = build_agent(build_backend(workspace), checkpointer=MemorySaver())
+    stable_thread_id = thread_id or uuid.uuid4().hex
     retryable_errors = (
         httpx.TransportError,
         openai.APIConnectionError,
@@ -588,102 +504,153 @@ def run_agent(
         openai.InternalServerError,
         openai.RateLimitError,
     )
-    while True:
+
+    for attempt in range(max_retries + 1):
+        prompt = (
+            RUN_PROMPT
+            if attempt == 0
+            else (
+                "Продолжи незавершённый анализ в том же thread и workspace. "
+                "Проверь существующие рабочие файлы и доведи канонический "
+                "`/outputs/result.json` до complete."
+            )
+        )
         try:
             agent.invoke(
-                {"messages": [{"role": "user", "content": run_prompt}]},
+                {"messages": [{"role": "user", "content": prompt}]},
                 config={
-                    "configurable": {"thread_id": thread_id},
+                    "configurable": {"thread_id": stable_thread_id},
                     "recursion_limit": 10_000,
                     "callbacks": [CompactTraceHandler()],
                 },
             )
             return
         except retryable_errors as exc:
-            retry_number += 1
-            delay_seconds = min(2**retry_number, 30)
+            if attempt >= max_retries:
+                raise RuntimeError(
+                    f"Agent failed after {max_retries} transient retries"
+                ) from exc
+            delay_seconds = min(2 ** (attempt + 1), 30)
             print(
-                f"Transient failure ({type(exc).__name__}); retrying the same "
-                f"workspace in {delay_seconds}s [retry {retry_number}]",
+                f"Transient failure ({type(exc).__name__}); continuing the "
+                f"same thread in {delay_seconds}s "
+                f"[retry {attempt + 1}/{max_retries}]",
                 file=sys.stderr,
                 flush=True,
             )
-            time.sleep(delay_seconds)
+            sleep(delay_seconds)
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_manifest(
+    workspace: Path,
+    *,
+    run_id: str,
+    thread_id: str,
+    status: str,
+    contract: Path,
+    matrix: Path,
+    error: str | None = None,
+) -> None:
+    payload = {
+        "schema_version": "contract-review-run.v1",
+        "run_id": run_id,
+        "thread_id": thread_id,
+        "status": status,
+        "contract_sha256": _sha256(contract),
+        "matrix_sha256": _sha256(matrix),
+        "skill": "contract-matrix-review",
+        "error": error,
+    }
+    target = workspace / RUN_MANIFEST
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     started = time.perf_counter()
-    started_wall = time.time()
     workspace: Path | None = None
     completed = False
-    stage_timings: dict[str, float] | None = None
+    run_id = uuid.uuid4().hex
+    thread_id = uuid.uuid4().hex
+
     try:
-        workspace, conclusion_output = prepare_workspace(
+        if args.max_retries < 0:
+            raise ValueError("--max-retries must be non-negative")
+        workspace, result_output, contract, matrix = prepare_workspace(
             args.contract,
             args.matrix,
             args.output,
         )
-        primary_output, analysis_output = resolve_publish_outputs(
-            primary_path=args.primary_output,
-            analysis_path=args.analysis_output,
-            contract=args.contract,
-            matrix=args.matrix,
-            conclusion_output=conclusion_output,
+        _write_manifest(
+            workspace,
+            run_id=run_id,
+            thread_id=thread_id,
+            status="in_progress",
+            contract=contract,
+            matrix=matrix,
         )
 
-        run_agent(workspace)
+        run_agent(
+            workspace,
+            max_retries=args.max_retries,
+            thread_id=thread_id,
+        )
 
-        primary = workspace / PRIMARY_ARTIFACT
-        complete = workspace / COMPLETE_ARTIFACT
-        conclusion = workspace / FINAL_ARTIFACT
-        validate_primary_artifact(primary)
-        validate_complete_artifact(complete)
-        validate_conclusion_artifact(conclusion)
-        primary_finished = primary.stat().st_mtime
-        recovery_finished = complete.stat().st_mtime
-        selector_finished = conclusion.stat().st_mtime
-        stage_timings = {
-            "primary": max(0.0, primary_finished - started_wall),
-            "gap_recovery": max(0.0, recovery_finished - primary_finished),
-            "selector": max(0.0, selector_finished - recovery_finished),
-        }
-
-        if primary_output is not None:
-            shutil.copyfile(primary, primary_output)
-        if analysis_output is not None:
-            shutil.copyfile(complete, analysis_output)
-        shutil.copyfile(conclusion, conclusion_output)
+        result = workspace / RESULT_ARTIFACT
+        validate_result_artifact(result)
+        shutil.copy2(result, result_output)
+        _write_manifest(
+            workspace,
+            run_id=run_id,
+            thread_id=thread_id,
+            status="complete",
+            contract=contract,
+            matrix=matrix,
+        )
         completed = True
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
+        if workspace is not None:
+            try:
+                contract_path = _resolve_input(args.contract, "Contract")
+                matrix_path = _resolve_input(args.matrix, "Matrix")
+                _write_manifest(
+                    workspace,
+                    run_id=run_id,
+                    thread_id=thread_id,
+                    status="failed",
+                    contract=contract_path,
+                    matrix=matrix_path,
+                    error=f"{type(exc).__name__}: {exc}",
+                )
+            except Exception:
+                pass
         print(f"Error: {exc}", file=sys.stderr)
         return 1
     finally:
         if workspace is not None:
-            if completed:
+            if completed and not args.keep_workspace:
                 shutil.rmtree(workspace, ignore_errors=True)
             else:
                 print(
-                    f"[workspace] preserved after failure: {workspace}",
+                    f"[workspace] preserved: {workspace}",
                     file=sys.stderr,
                     flush=True,
                 )
 
-    print(f"[total] finished in {time.perf_counter() - started:.1f}s", flush=True)
-    if stage_timings is not None:
-        print(
-            "[stages] "
-            + " ".join(
-                f"{name}={duration:.1f}s"
-                for name, duration in stage_timings.items()
-            ),
-            flush=True,
-        )
-    if primary_output is not None:
-        print(f"[primary] {primary_output}", flush=True)
-    if analysis_output is not None:
-        print(f"[analysis] {analysis_output}", flush=True)
-    print(conclusion_output)
+    print(f"[agent] finished in {time.perf_counter() - started:.1f}s", flush=True)
+    print(result_output)
     return 0
 
 

@@ -8,7 +8,7 @@ load_dotenv()
 
 
 def get_llm(
-    max_completion_tokens: int = 64_000,
+    max_completion_tokens: int = 300_000,
     thinking: bool = True,
     reasoning_effort: str = "medium",
 ) -> ChatOpenAI:
@@ -20,6 +20,8 @@ def get_llm(
         api_key=api_key,
         base_url=base_url,
         max_retries=3,
+        request_timeout=300.0,
+        stream_chunk_timeout=300.0,
         temperature=0.0,
         streaming=thinking,
         max_completion_tokens=max_completion_tokens,
