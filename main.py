@@ -28,26 +28,21 @@ from llm import get_llm
 PROJECT_ROOT = Path(__file__).resolve().parent
 DOMAIN_SKILL_SOURCE = PROJECT_ROOT / "skills" / "contract-matrix-review"
 SKILL_SOURCES = (DOMAIN_SKILL_SOURCE,)
+PROMPTS_ROOT = PROJECT_ROOT / "prompts"
 
 RESULT_ARTIFACT = Path("outputs/result.json")
+STATUS_AUDIT_ARTIFACT = Path("outputs/working/status-audit.json")
+COVERAGE_AUDIT_ARTIFACT = Path("outputs/working/coverage-audit.json")
 RUN_MANIFEST = Path("outputs/run-manifest.json")
 
 
-AGENT_SYSTEM_PROMPT = """
-Ты — агент сравнения проектов договоров с банковской матрицей.
+def _load_prompt(name: str) -> str:
+    return (PROMPTS_ROOT / name).read_text(encoding="utf-8").strip()
 
-Исходники находятся в `/inputs/contract.txt` и `/inputs/matrix.json`.
-Результат должен быть записан в `/outputs/result.json`.
-Для анализа обязательно используй skill `/skills/contract-matrix-review/`.
-При делегировании анализа укажи subagent использовать этот же skill.
 
-В сообщении верни только краткое подтверждение и путь.
-""".strip()
-
-RUN_PROMPT = """
-Сравни проект договора с банковской матрицей.
-Сохрани результат в `/outputs/result.json`.
-""".strip()
+AGENT_SYSTEM_PROMPT = _load_prompt("orchestrator-system.md")
+RUN_PROMPT = _load_prompt("contract-review-user.md")
+QUALITY_REPAIR_PROMPT = _load_prompt("quality-repair-user.md")
 
 class CompactTraceHandler(BaseCallbackHandler):
     """Emit timing events without prompts, source text, or tool payloads."""
@@ -285,7 +280,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--max-retries",
         type=int,
         default=3,
-        help="Maximum transient API retries; default: 3",
+        help="Maximum API retries and quality-gate repair passes; default: 3",
     )
     return parser.parse_args(argv)
 
@@ -336,108 +331,6 @@ def prepare_workspace(
     return workspace, output, contract, matrix
 
 
-def _read_json_artifact(path: Path, label: str) -> dict:
-    if not path.is_file():
-        raise RuntimeError(f"{label} artifact does not exist: {path}")
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"{label} artifact is not valid UTF-8 JSON: {path}") from exc
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"{label} artifact must be a JSON object: {path}")
-    return payload
-
-
-def _require_list(payload: dict, field: str, label: str) -> list:
-    value = payload.get(field)
-    if not isinstance(value, list):
-        raise RuntimeError(f"{label} field {field!r} must be an array")
-    return value
-
-
-def validate_result_artifact(path: Path) -> dict:
-    """Validate only the transport/schema contract, never legal conclusions."""
-
-    payload = _read_json_artifact(path, "Result")
-    if payload.get("schema_version") != "contract-matrix-map.v3":
-        raise RuntimeError(
-            "Result schema_version must be contract-matrix-map.v3"
-        )
-    if payload.get("completion_status") != "complete":
-        raise RuntimeError("Result completion_status must be complete")
-
-    contract_items = _require_list(payload, "contract_items", "Result")
-    matrix_items = _require_list(payload, "matrix_items", "Result")
-
-    contract_ids: set[str] = set()
-    referenced_matrix_ids: set[str] = set()
-    for index, item in enumerate(contract_items):
-        label = f"Result contract_items[{index}]"
-        if not isinstance(item, dict):
-            raise RuntimeError(f"{label} must be an object")
-        if not isinstance(item.get("contract_id"), str) or not item["contract_id"]:
-            raise RuntimeError(f"{label} contract_id is required")
-        if item["contract_id"] in contract_ids:
-            raise RuntimeError(f"{label} duplicates contract_id")
-        contract_ids.add(item["contract_id"])
-        if not isinstance(item.get("contract_text"), str):
-            raise RuntimeError(f"{label} contract_text is required")
-        if item.get("status") not in {
-            "aligned",
-            "deviation",
-            "extra_in_contract",
-            "not_applicable",
-        }:
-            raise RuntimeError(f"{label} has invalid status")
-        matrix_ids = _require_list(item, "matrix_ids", label)
-        if len(matrix_ids) != len(set(matrix_ids)):
-            raise RuntimeError(f"{label} contains duplicate matrix_ids")
-        for matrix_index, matrix_id in enumerate(matrix_ids):
-            if not isinstance(matrix_id, str) or not matrix_id:
-                raise RuntimeError(
-                    f"{label}.matrix_ids[{matrix_index}] is invalid"
-                )
-            referenced_matrix_ids.add(matrix_id)
-        if (
-            not isinstance(item.get("comment"), str)
-            or not item["comment"].strip()
-        ):
-            raise RuntimeError(f"{label} comment is required")
-
-    matrix_ids: set[str] = set()
-    for index, item in enumerate(matrix_items):
-        label = f"Result matrix_items[{index}]"
-        if not isinstance(item, dict):
-            raise RuntimeError(f"{label} must be an object")
-        if not isinstance(item.get("matrix_id"), str) or not item["matrix_id"]:
-            raise RuntimeError(f"{label} matrix_id is required")
-        if item["matrix_id"] in matrix_ids:
-            raise RuntimeError(f"{label} duplicates matrix_id")
-        matrix_ids.add(item["matrix_id"])
-        if not isinstance(item.get("matrix_text"), str):
-            raise RuntimeError(f"{label} matrix_text is required")
-        if item.get("required_type") != "mandatory":
-            raise RuntimeError(f"{label} required_type must be mandatory")
-        if item.get("status") != "missing_in_contract":
-            raise RuntimeError(
-                f"{label} status must be missing_in_contract"
-            )
-        if (
-            not isinstance(item.get("comment"), str)
-            or not item["comment"].strip()
-        ):
-            raise RuntimeError(f"{label} comment is required")
-
-    conflicting_matrix_ids = referenced_matrix_ids & matrix_ids
-    if conflicting_matrix_ids:
-        raise RuntimeError(
-            "Result matrix_items contain matrix_ids already referenced by "
-            "contract_items: "
-            + ", ".join(sorted(conflicting_matrix_ids))
-        )
-    return payload
-
-
 def build_backend(workspace: Path) -> WindowsPowerShellBackend:
     shell_env = {
         key: os.environ[key]
@@ -475,9 +368,10 @@ def build_agent(
     *,
     checkpointer=None,
 ):
+    model = get_llm()
     return create_deep_agent(
         name="contract-matrix-review-agent",
-        model=get_llm(),
+        model=model,
         system_prompt=AGENT_SYSTEM_PROMPT,
         backend=backend,
         skills=["/skills/contract-matrix-review/"],
@@ -485,18 +379,385 @@ def build_agent(
     )
 
 
-def run_agent(
-    workspace: Path,
-    *,
-    max_retries: int = 3,
-    thread_id: str | None = None,
-    sleep=time.sleep,
-) -> None:
-    if max_retries < 0:
-        raise ValueError("max_retries must be non-negative")
+def _read_json_object(path: Path, label: str) -> tuple[dict | None, list[str]]:
+    if not path.is_file():
+        return None, [f"{label} is missing: /{path.as_posix()}"]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return None, [f"{label} is not readable UTF-8 JSON: {type(exc).__name__}"]
+    if not isinstance(payload, dict):
+        return None, [f"{label} must be a JSON object"]
+    return payload, []
 
-    agent = build_agent(build_backend(workspace), checkpointer=MemorySaver())
-    stable_thread_id = thread_id or uuid.uuid4().hex
+
+def quality_gate_failures(workspace: Path) -> list[str]:
+    """Check only artifact readiness; legal judgments remain agent-owned."""
+
+    failures: list[str] = []
+    result, errors = _read_json_object(workspace / RESULT_ARTIFACT, "result")
+    failures.extend(errors)
+    audit, errors = _read_json_object(
+        workspace / COVERAGE_AUDIT_ARTIFACT,
+        "coverage audit",
+    )
+    failures.extend(errors)
+    status_audit, errors = _read_json_object(
+        workspace / STATUS_AUDIT_ARTIFACT,
+        "status audit",
+    )
+    failures.extend(errors)
+    if result is None or audit is None or status_audit is None:
+        return failures
+
+    required_result_keys = {
+        "schema_version",
+        "completion_status",
+        "contract_items",
+        "matrix_items",
+        "review_items",
+    }
+    missing_result_keys = sorted(required_result_keys - result.keys())
+    if missing_result_keys:
+        failures.append(
+            "result is missing top-level keys: " + ", ".join(missing_result_keys)
+        )
+    if result.get("completion_status") not in {"complete", "complete_with_review"}:
+        failures.append("result completion_status is not complete")
+
+    contract_items = result.get("contract_items")
+    if not isinstance(contract_items, list):
+        failures.append("result contract_items must be a list")
+        contract_items = None
+    matrix_items = result.get("matrix_items")
+    if not isinstance(matrix_items, list):
+        failures.append("result matrix_items must be a list")
+        matrix_items = None
+
+    required_audit_keys = {
+        "schema_version",
+        "completion_status",
+        "source_contract_item_count",
+        "result_contract_item_count",
+        "source_contract_ids",
+        "result_contract_ids",
+        "contract_inventory_complete",
+        "all_contract_items_processed",
+        "mandatory_matrix_sweep_complete",
+        "business_aligned_challenge_complete",
+        "business_deviation_sweep_complete",
+        "suppression_sweep_complete",
+        "main_idea_evidence_check_complete",
+        "status_audit_complete",
+        "number_neutrality_review_complete",
+        "mapping_cliff_review_complete",
+        "unprocessed_contract_ids",
+        "duplicate_contract_ids",
+        "synthetic_contract_ids",
+        "unresolved_sections",
+        "blocker_count",
+        "blockers",
+    }
+    missing_audit_keys = sorted(required_audit_keys - audit.keys())
+    if missing_audit_keys:
+        failures.append(
+            "coverage audit is missing keys: " + ", ".join(missing_audit_keys)
+        )
+        return failures
+
+    if audit.get("schema_version") != "contract-review-coverage.v2":
+        failures.append("coverage audit schema_version is unsupported")
+    if audit.get("completion_status") != "complete":
+        failures.append("coverage audit completion_status is not complete")
+
+    for field in (
+        "contract_inventory_complete",
+        "all_contract_items_processed",
+        "mandatory_matrix_sweep_complete",
+        "business_aligned_challenge_complete",
+        "business_deviation_sweep_complete",
+        "suppression_sweep_complete",
+        "main_idea_evidence_check_complete",
+        "status_audit_complete",
+        "number_neutrality_review_complete",
+        "mapping_cliff_review_complete",
+    ):
+        if audit.get(field) is not True:
+            failures.append(f"coverage audit {field} is not true")
+
+    for field in (
+        "unprocessed_contract_ids",
+        "duplicate_contract_ids",
+        "synthetic_contract_ids",
+        "unresolved_sections",
+        "blockers",
+    ):
+        value = audit.get(field)
+        if not isinstance(value, list):
+            failures.append(f"coverage audit {field} must be a list")
+        elif value:
+            failures.append(f"coverage audit {field} is not empty")
+
+    blocker_count = audit.get("blocker_count")
+    if isinstance(blocker_count, bool) or not isinstance(blocker_count, int):
+        failures.append("coverage audit blocker_count must be an integer")
+    elif blocker_count != 0:
+        failures.append("coverage audit blocker_count is not zero")
+
+    source_count = audit.get("source_contract_item_count")
+    result_count = audit.get("result_contract_item_count")
+    for field, value in (
+        ("source_contract_item_count", source_count),
+        ("result_contract_item_count", result_count),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            failures.append(f"coverage audit {field} must be a non-negative integer")
+    if isinstance(source_count, int) and isinstance(result_count, int):
+        if source_count != result_count:
+            failures.append("coverage audit source and result counts differ")
+        if contract_items is not None and result_count != len(contract_items):
+            failures.append(
+                "coverage audit result count differs from result contract_items length"
+            )
+
+    source_ids = audit.get("source_contract_ids")
+    result_ids = audit.get("result_contract_ids")
+    if not isinstance(source_ids, list):
+        failures.append("coverage audit source_contract_ids must be a list")
+    if not isinstance(result_ids, list):
+        failures.append("coverage audit result_contract_ids must be a list")
+    if isinstance(source_ids, list) and isinstance(result_ids, list):
+        if source_ids != result_ids:
+            failures.append("coverage audit source and result ID manifests differ")
+        if len(source_ids) != len(set(map(str, source_ids))):
+            failures.append("coverage audit source_contract_ids contains duplicates")
+        if len(result_ids) != len(set(map(str, result_ids))):
+            failures.append("coverage audit result_contract_ids contains duplicates")
+        if isinstance(source_count, int) and len(source_ids) != source_count:
+            failures.append(
+                "coverage audit source ID manifest length differs from source count"
+            )
+        if isinstance(result_count, int) and len(result_ids) != result_count:
+            failures.append(
+                "coverage audit result ID manifest length differs from result count"
+            )
+        if contract_items is not None:
+            artifact_ids = [
+                item.get("contract_id") if isinstance(item, dict) else None
+                for item in contract_items
+            ]
+            if result_ids != artifact_ids:
+                failures.append(
+                    "coverage audit result ID manifest differs from result order"
+                )
+
+    required_status_audit_keys = {
+        "schema_version",
+        "completion_status",
+        "deviation_decisions",
+        "extra_decisions",
+        "missing_decisions",
+        "rejected_deviation_candidates",
+        "blocker_count",
+        "blockers",
+    }
+    missing_status_audit_keys = sorted(
+        required_status_audit_keys - status_audit.keys()
+    )
+    if missing_status_audit_keys:
+        failures.append(
+            "status audit is missing keys: "
+            + ", ".join(missing_status_audit_keys)
+        )
+        return failures
+
+    if status_audit.get("schema_version") != "contract-review-status-audit.v1":
+        failures.append("status audit schema_version is unsupported")
+    if status_audit.get("completion_status") != "complete":
+        failures.append("status audit completion_status is not complete")
+
+    decisions = status_audit.get("deviation_decisions")
+    if not isinstance(decisions, list):
+        failures.append("status audit deviation_decisions must be a list")
+    else:
+        required_decision_keys = {
+            "contract_id",
+            "matrix_ids",
+            "business_category",
+            "shared_business_proposition",
+            "delta",
+            "bank_impact",
+            "matrix_evidence",
+            "contract_evidence",
+            "suppression_checks",
+            "decision",
+        }
+        for index, decision in enumerate(decisions):
+            label = f"status audit deviation_decisions[{index}]"
+            if not isinstance(decision, dict):
+                failures.append(f"{label} must be an object")
+                continue
+            missing_keys = sorted(required_decision_keys - decision.keys())
+            if missing_keys:
+                failures.append(
+                    f"{label} is missing keys: " + ", ".join(missing_keys)
+                )
+            if not isinstance(decision.get("matrix_ids"), list):
+                failures.append(f"{label} matrix_ids must be a list")
+            if not isinstance(decision.get("suppression_checks"), dict):
+                failures.append(f"{label} suppression_checks must be an object")
+            if decision.get("decision") != "deviation":
+                failures.append(f"{label} decision must be deviation")
+
+    if not isinstance(status_audit.get("rejected_deviation_candidates"), list):
+        failures.append(
+            "status audit rejected_deviation_candidates must be a list"
+        )
+    extra_decisions = status_audit.get("extra_decisions")
+    if not isinstance(extra_decisions, list):
+        failures.append("status audit extra_decisions must be a list")
+    else:
+        required_extra_keys = {
+            "contract_id",
+            "candidate_matrix_ids_checked",
+            "operational_effect",
+            "no_shared_business_proposition_reason",
+            "decision",
+        }
+        for index, decision in enumerate(extra_decisions):
+            label = f"status audit extra_decisions[{index}]"
+            if not isinstance(decision, dict):
+                failures.append(f"{label} must be an object")
+                continue
+            missing_keys = sorted(required_extra_keys - decision.keys())
+            if missing_keys:
+                failures.append(
+                    f"{label} is missing keys: " + ", ".join(missing_keys)
+                )
+            if not isinstance(decision.get("candidate_matrix_ids_checked"), list):
+                failures.append(
+                    f"{label} candidate_matrix_ids_checked must be a list"
+                )
+            if decision.get("decision") != "extra_in_contract":
+                failures.append(f"{label} decision must be extra_in_contract")
+    missing_decisions = status_audit.get("missing_decisions")
+    if not isinstance(missing_decisions, list):
+        failures.append("status audit missing_decisions must be a list")
+    else:
+        required_missing_keys = {
+            "matrix_id",
+            "semantic_candidates_checked",
+            "same_relationship_partial_analog_found",
+            "applicability_basis",
+            "no_analog_reason",
+            "decision",
+        }
+        for index, decision in enumerate(missing_decisions):
+            label = f"status audit missing_decisions[{index}]"
+            if not isinstance(decision, dict):
+                failures.append(f"{label} must be an object")
+                continue
+            missing_keys = sorted(required_missing_keys - decision.keys())
+            if missing_keys:
+                failures.append(
+                    f"{label} is missing keys: " + ", ".join(missing_keys)
+                )
+            if not isinstance(decision.get("semantic_candidates_checked"), list):
+                failures.append(
+                    f"{label} semantic_candidates_checked must be a list"
+                )
+            if decision.get("same_relationship_partial_analog_found") is not False:
+                failures.append(
+                    f"{label} cannot publish missing after finding a partial analog"
+                )
+            if decision.get("decision") != "missing_in_contract":
+                failures.append(f"{label} decision must be missing_in_contract")
+    status_blockers = status_audit.get("blockers")
+    if not isinstance(status_blockers, list):
+        failures.append("status audit blockers must be a list")
+    elif status_blockers:
+        failures.append("status audit blockers is not empty")
+    status_blocker_count = status_audit.get("blocker_count")
+    if (
+        isinstance(status_blocker_count, bool)
+        or not isinstance(status_blocker_count, int)
+    ):
+        failures.append("status audit blocker_count must be an integer")
+    elif status_blocker_count != 0:
+        failures.append("status audit blocker_count is not zero")
+
+    if contract_items is not None:
+        published_deviation_ids = [
+            item.get("contract_id")
+            for item in contract_items
+            if isinstance(item, dict) and item.get("status") == "deviation"
+        ]
+        audited_deviation_ids = (
+            [
+                item.get("contract_id")
+                for item in decisions
+                if isinstance(item, dict)
+            ]
+            if isinstance(decisions, list)
+            else []
+        )
+        if audited_deviation_ids != published_deviation_ids:
+            failures.append(
+                "status audit deviation decisions differ from published deviations"
+            )
+
+        published_extra_ids = [
+            item.get("contract_id")
+            for item in contract_items
+            if isinstance(item, dict)
+            and item.get("status") == "extra_in_contract"
+        ]
+        audited_extra_ids = (
+            [
+                item.get("contract_id")
+                for item in extra_decisions
+                if isinstance(item, dict)
+            ]
+            if isinstance(extra_decisions, list)
+            else []
+        )
+        if audited_extra_ids != published_extra_ids:
+            failures.append(
+                "status audit extra decisions differ from published extras"
+            )
+
+    if matrix_items is not None:
+        published_missing_ids = [
+            item.get("matrix_id")
+            for item in matrix_items
+            if isinstance(item, dict)
+            and item.get("status") == "missing_in_contract"
+        ]
+        audited_missing_ids = (
+            [
+                item.get("matrix_id")
+                for item in missing_decisions
+                if isinstance(item, dict)
+            ]
+            if isinstance(missing_decisions, list)
+            else []
+        )
+        if audited_missing_ids != published_missing_ids:
+            failures.append(
+                "status audit missing decisions differ from published missing"
+            )
+
+    return failures
+
+
+def _invoke_with_transient_retries(
+    agent,
+    prompt: str,
+    config: dict,
+    *,
+    max_retries: int,
+    sleep,
+) -> None:
     retryable_errors = (
         httpx.TransportError,
         openai.APIConnectionError,
@@ -504,25 +765,11 @@ def run_agent(
         openai.InternalServerError,
         openai.RateLimitError,
     )
-
     for attempt in range(max_retries + 1):
-        prompt = (
-            RUN_PROMPT
-            if attempt == 0
-            else (
-                "Продолжи незавершённый анализ в том же thread и workspace. "
-                "Проверь существующие рабочие файлы и доведи канонический "
-                "`/outputs/result.json` до complete."
-            )
-        )
         try:
             agent.invoke(
                 {"messages": [{"role": "user", "content": prompt}]},
-                config={
-                    "configurable": {"thread_id": stable_thread_id},
-                    "recursion_limit": 10_000,
-                    "callbacks": [CompactTraceHandler()],
-                },
+                config=config,
             )
             return
         except retryable_errors as exc:
@@ -539,6 +786,56 @@ def run_agent(
                 flush=True,
             )
             sleep(delay_seconds)
+        except openai.APIStatusError as exc:
+            raise RuntimeError(
+                f"Agent API request failed with status {exc.status_code}: {exc.message}"
+            ) from exc
+
+
+def run_agent(
+    workspace: Path,
+    *,
+    max_retries: int = 3,
+    thread_id: str | None = None,
+    sleep=time.sleep,
+) -> None:
+    if max_retries < 0:
+        raise ValueError("max_retries must be non-negative")
+
+    agent = build_agent(build_backend(workspace), checkpointer=MemorySaver())
+    stable_thread_id = thread_id or uuid.uuid4().hex
+    config = {
+        "configurable": {"thread_id": stable_thread_id},
+        "recursion_limit": 10_000,
+        "callbacks": [CompactTraceHandler()],
+    }
+
+    prompt = RUN_PROMPT
+    for quality_attempt in range(max_retries + 1):
+        _invoke_with_transient_retries(
+            agent,
+            prompt,
+            config,
+            max_retries=max_retries,
+            sleep=sleep,
+        )
+        failures = quality_gate_failures(workspace)
+        if not failures:
+            return
+        if quality_attempt >= max_retries:
+            raise RuntimeError(
+                "Agent stopped before the quality gate passed: "
+                + "; ".join(failures)
+            )
+        print(
+            "Quality gate not passed; continuing the same thread "
+            f"[repair {quality_attempt + 1}/{max_retries}]",
+            file=sys.stderr,
+            flush=True,
+        )
+        prompt = QUALITY_REPAIR_PROMPT.format(
+            failures="\n".join(f"- {failure}" for failure in failures)
+        )
 
 
 def _sha256(path: Path) -> str:
@@ -608,8 +905,13 @@ def main(argv: list[str] | None = None) -> int:
             thread_id=thread_id,
         )
 
+        gate_failures = quality_gate_failures(workspace)
+        if gate_failures:
+            raise RuntimeError(
+                "Agent output failed the publication gate: "
+                + "; ".join(gate_failures)
+            )
         result = workspace / RESULT_ARTIFACT
-        validate_result_artifact(result)
         shutil.copy2(result, result_output)
         _write_manifest(
             workspace,

@@ -10,7 +10,7 @@ load_dotenv()
 def get_llm(
     max_completion_tokens: int = 300_000,
     thinking: bool = True,
-    reasoning_effort: str = "medium",
+    reasoning_effort: str = "max",
 ) -> ChatOpenAI:
     model = os.getenv("DEEPSEEK_MODEL")
     api_key = os.getenv("DEEPSEEK_API_KEY")

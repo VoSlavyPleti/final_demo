@@ -12,7 +12,7 @@ import main
 
 def _result_payload() -> dict:
     return {
-        "schema_version": "contract-matrix-map.v3",
+        "schema_version": "contract-matrix-map.v4",
         "completion_status": "complete",
         "contract_items": [
             {
@@ -39,7 +39,90 @@ def _result_payload() -> dict:
                 "comment": "Применимо, аналог отсутствует.",
             },
         ],
+        "review_items": [],
     }
+
+
+def _audit_payload(**overrides) -> dict:
+    payload = {
+        "schema_version": "contract-review-coverage.v2",
+        "completion_status": "complete",
+        "source_contract_item_count": 2,
+        "result_contract_item_count": 2,
+        "source_contract_ids": ["1.1", "1.2"],
+        "result_contract_ids": ["1.1", "1.2"],
+        "contract_inventory_complete": True,
+        "all_contract_items_processed": True,
+        "mandatory_matrix_sweep_complete": True,
+        "business_aligned_challenge_complete": True,
+        "business_deviation_sweep_complete": True,
+        "suppression_sweep_complete": True,
+        "main_idea_evidence_check_complete": True,
+        "status_audit_complete": True,
+        "number_neutrality_review_complete": True,
+        "mapping_cliff_review_complete": True,
+        "unprocessed_contract_ids": [],
+        "duplicate_contract_ids": [],
+        "synthetic_contract_ids": [],
+        "unresolved_sections": [],
+        "blocker_count": 0,
+        "blockers": [],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _status_audit_payload(**overrides) -> dict:
+    payload = {
+        "schema_version": "contract-review-status-audit.v1",
+        "completion_status": "complete",
+        "deviation_decisions": [],
+        "extra_decisions": [
+            {
+                "contract_id": "1.2",
+                "candidate_matrix_ids_checked": [],
+                "operational_effect": "Самостоятельная обязанность.",
+                "no_shared_business_proposition_reason": "Аналогов нет.",
+                "decision": "extra_in_contract",
+            }
+        ],
+        "missing_decisions": [
+            {
+                "matrix_id": "3.1",
+                "semantic_candidates_checked": [],
+                "same_relationship_partial_analog_found": False,
+                "applicability_basis": "Применимая mandatory-строка.",
+                "no_analog_reason": "Аналогов нет.",
+                "decision": "missing_in_contract",
+            }
+        ],
+        "rejected_deviation_candidates": [],
+        "blocker_count": 0,
+        "blockers": [],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def _write_ready_artifacts(workspace: Path) -> None:
+    result = workspace / main.RESULT_ARTIFACT
+    result.parent.mkdir(parents=True, exist_ok=True)
+    result.write_text(
+        json.dumps(_result_payload(), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    audit = workspace / main.COVERAGE_AUDIT_ARTIFACT
+    audit.parent.mkdir(parents=True, exist_ok=True)
+    audit.write_text(
+        json.dumps(_audit_payload(), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    status_audit = workspace / main.STATUS_AUDIT_ARTIFACT
+    status_audit.parent.mkdir(parents=True, exist_ok=True)
+    status_audit.write_text(
+        json.dumps(_status_audit_payload(), ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 
 def _inputs(tmp_path: Path) -> tuple[Path, Path]:
@@ -69,7 +152,10 @@ def test_prepare_workspace_mounts_one_domain_skill(tmp_path: Path) -> None:
         ) == "1.1. Условие."
         mounted = workspace / "skills" / "contract-matrix-review"
         assert (mounted / "SKILL.md").is_file()
-        assert (mounted / "references" / "calibration.md").is_file()
+        assert (mounted / "references" / "business-deviation-policy.md").is_file()
+        assert (mounted / "references" / "worked-examples.md").is_file()
+        assert (mounted / "references" / "output-schema.md").is_file()
+        assert not (mounted / "references" / "calibration.md").exists()
         assert len(list((workspace / "skills").iterdir())) == 1
     finally:
         shutil.rmtree(workspace, ignore_errors=True)
@@ -87,45 +173,7 @@ def test_prepare_workspace_validates_paths(tmp_path: Path) -> None:
         main.prepare_workspace(tmp_path / "missing.txt", matrix, tmp_path / "x.json")
 
 
-def test_result_validator_accepts_full_map(tmp_path: Path) -> None:
-    path = tmp_path / "result.json"
-    path.write_text(
-        json.dumps(_result_payload(), ensure_ascii=False),
-        encoding="utf-8",
-    )
-    payload = main.validate_result_artifact(path)
-    assert payload["contract_items"][0]["status"] == "aligned"
-    assert payload["contract_items"][1]["status"] == "extra_in_contract"
-    assert payload["matrix_items"][0]["status"] == "missing_in_contract"
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    [
-        lambda p: p.update(schema_version="conclusion.v2"),
-        lambda p: p.update(completion_status="failed"),
-        lambda p: p.pop("contract_items"),
-        lambda p: p["contract_items"][0].update(status="unknown"),
-        lambda p: p["contract_items"][0].update(matrix_ids="invalid"),
-        lambda p: p["matrix_items"][0].update(matrix_id="2.1"),
-        lambda p: p["contract_items"].append(p["contract_items"][0].copy()),
-        lambda p: p.pop("matrix_items"),
-        lambda p: p["matrix_items"][0].update(status="unknown"),
-        lambda p: p["matrix_items"].append(p["matrix_items"][0].copy()),
-    ],
-)
-def test_result_validator_rejects_invalid_structure(
-    tmp_path: Path, mutation
-) -> None:
-    payload = _result_payload()
-    mutation(payload)
-    path = tmp_path / "result.json"
-    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-    with pytest.raises(RuntimeError):
-        main.validate_result_artifact(path)
-
-
-def test_build_agent_registers_only_root_domain_skill(
+def test_build_agent_uses_builtin_general_purpose_subagent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     captured: dict = {}
@@ -142,69 +190,86 @@ def test_build_agent_registers_only_root_domain_skill(
     assert captured["system_prompt"] == main.AGENT_SYSTEM_PROMPT
     assert captured["skills"] == ["/skills/contract-matrix-review/"]
     assert "subagents" not in captured
+    assert "tools" not in captured
 
 
-def test_prompts_are_short_and_do_not_prescribe_pipeline() -> None:
-    assert main.RUN_PROMPT == (
-        "Сравни проект договора с банковской матрицей.\n"
-        "Сохрани результат в `/outputs/result.json`."
-    )
+def test_prompts_define_autonomy_and_completion_contract() -> None:
     system = main.AGENT_SYSTEM_PROMPT.lower()
-    assert "/outputs/result.json" in system
-    assert "analysis.json" not in system
-    assert "skill.md" not in system
-    assert "subagent использовать этот же skill" in system
-    assert "валид" not in system
-    assert "повторн" not in system
-    assert "проверь" not in system
-    assert "самостоятель" not in system
-    for legacy_stage in ("primary", "gap", "selector", "pipeline"):
-        assert legacy_stage not in main.RUN_PROMPT.lower()
-    assert len(main.AGENT_SYSTEM_PROMPT.split()) < 90
+    user = main.RUN_PROMPT.lower()
+
+    assert system.count("/outputs/result.json") == 1
+    assert "/outputs/result.json" not in user
+    assert "/outputs/working/coverage-audit.json" in system
+    assert "/skills/contract-matrix-review/" in system
+    assert "сам выбирай инструменты" in system
+    assert "general-purpose" in system
+    assert "contract-mapper" not in system
+    assert "статусный артефакт" in system
+    assert "blocker_count" in system
+    assert "нулевой смысловой вес нумерации" in system
+    assert "равны нулю" in system
+    assert "сам выбирай инструменты" in system
+    assert not (main.PROMPTS_ROOT / "mapping-worker-system.md").exists()
+
+    assert "каждый собственный нумерованный" in user
+    assert "не завершай" in user
+    assert "missing-sweep" in user
+    assert "business deviations" in user
+    assert "main_idea" in system
+    assert "number_neutrality_review_complete" in system
 
 
 def test_skill_defines_one_artifact_and_requested_columns() -> None:
     skill = main.DOMAIN_SKILL_SOURCE / "SKILL.md"
     text = skill.read_text(encoding="utf-8")
-    calibration = (
-        skill.parent / "references" / "calibration.md"
+    policy = (
+        skill.parent / "references" / "business-deviation-policy.md"
     ).read_text(encoding="utf-8")
-    combined = text + calibration
+    examples = (
+        skill.parent / "references" / "worked-examples.md"
+    ).read_text(encoding="utf-8")
+    schema = (
+        skill.parent / "references" / "output-schema.md"
+    ).read_text(encoding="utf-8")
+    combined = text + policy + examples + schema
 
     assert text.startswith("---\n")
-    assert "/outputs/result.json" in text
+    assert "/outputs/result.json" not in combined
     assert "analysis.json" not in text
-    assert '"contract_items"' in text
-    assert '"matrix_items"' in text
-    assert '"contract_text"' in text
-    assert '"matrix_text"' in text
-    assert '"matrix_ids"' in text
-    assert '"applicability"' not in text
-    assert '"resolution"' not in text
-    assert '"coverage_audit"' not in text
-    assert '"contract_profile"' not in text
-    assert "каждый нумерованный пункт основного текста договора" in text
-    assert "все рабочие строки матрицы" in text
-    assert "все и только применимые mandatory-строки" in text
-    assert "объединять несколько нумерованных пунктов" in text.lower()
-    assert "нумерация разделов, полей и таблиц внутри приложений" in text.lower()
+    assert '"contract_items"' in schema
+    assert '"matrix_items"' in schema
+    assert '"review_items"' in schema
+    assert '"contract_text"' in schema
+    assert '"matrix_text"' in schema
+    assert '"matrix_ids"' in schema
+    assert "contract-matrix-map.v4" in schema
+    assert "каждый собственный номер основного текста договора" in text
+    assert "не объединять разные нумерованные пункты" in text.lower()
+    assert "нумерации" in text.lower()
+    assert "полей и таблиц приложения" in text.lower()
     assert "not_applicable" in text
-    assert "неактивированной продуктовой ветки" in text.lower()
-    assert "любое отличие конкретного срока" in text.lower()
-    assert "составить множество использованных" in text.lower()
-    assert "функционально изменённый" in text.lower()
-    assert "ненумерованный текст после пункта" in text.lower()
-    assert "меняет юридический эффект" in text.lower()
-    assert "общая применимость" in text.lower()
-    assert "незаполненное наименование продукта" in text.lower()
-    assert "worked comparisons" in combined.lower()
-    assert "изменённая сумма" in calibration.lower()
-    assert "совпадающий срок" in calibration.lower()
-    assert "изменённый триггер" in calibration.lower()
-    assert "перенесённая обязанность" in calibration.lower()
-    assert len(calibration.split()) <= 250
-    assert "не выводится" not in combined.lower()
-    assert "игнорировать" not in combined.lower()
+    assert "uncertain_applicability" in text
+    assert "uncertain_mapping" in combined
+    assert "не более трёх" in text.lower()
+    assert "тому же правоотношению" in text.lower()
+    assert "совпадающее положение в другом месте" in text.lower()
+    assert "amount_or_rate" in policy
+    assert "payment_mechanism" in policy
+    assert "bank_right" in policy
+    assert "required_scope" in policy
+    assert "deadline_or_date" in policy
+    assert "channel_or_form" in policy
+    assert "data_transfer" in policy
+    assert "other_material" in policy
+    assert "main_idea" in text
+    assert "`main_idea` не участвует в gate" in policy.lower()
+    assert "ндс или налоговому режиму" in policy.lower()
+    assert "не создавать `missing_in_contract`" in examples.lower()
+    assert "complete_with_review" in schema
+    assert "не готовить redline" not in combined.lower()
+    assert "не заменять решение" not in combined.lower()
+    assert "окончательным юридическим заключением" not in combined.lower()
+    assert "финальная выборка" not in schema.lower()
     assert "gold" not in combined.lower()
     assert "kavkaz" not in combined.lower()
 
@@ -222,7 +287,50 @@ def test_windows_backend_maps_virtual_paths_and_utf8(tmp_path: Path) -> None:
     assert (tmp_path / "outputs" / "кириллица.txt").is_file()
 
 
-def test_run_agent_retries_same_thread(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_quality_gate_requires_completed_agent_audit(tmp_path: Path) -> None:
+    _write_ready_artifacts(tmp_path)
+    assert main.quality_gate_failures(tmp_path) == []
+
+    audit_path = tmp_path / main.COVERAGE_AUDIT_ARTIFACT
+    audit_path.write_text(
+        json.dumps(
+            _audit_payload(
+                blocker_count=1,
+                blockers=["Раздел 6 не проверен"],
+                mapping_cliff_review_complete=False,
+                number_neutrality_review_complete=False,
+            ),
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    failures = main.quality_gate_failures(tmp_path)
+    assert any("blocker_count" in failure for failure in failures)
+    assert any("mapping_cliff_review_complete" in failure for failure in failures)
+    assert any(
+        "number_neutrality_review_complete" in failure for failure in failures
+    )
+    assert any("blockers is not empty" in failure for failure in failures)
+
+    status_path = tmp_path / main.STATUS_AUDIT_ARTIFACT
+    status_path.write_text(
+        json.dumps(
+            _status_audit_payload(
+                blocker_count=1,
+                blockers=["Не проверены кандидаты deviation"],
+            ),
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    failures = main.quality_gate_failures(tmp_path)
+    assert any("status audit blocker_count" in failure for failure in failures)
+    assert any("status audit blockers is not empty" in failure for failure in failures)
+
+
+def test_run_agent_retries_transient_failure_in_same_thread(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     class FakeAgent:
         def __init__(self) -> None:
             self.calls: list[tuple[dict, dict]] = []
@@ -235,12 +343,13 @@ def test_run_agent_retries_same_thread(monkeypatch: pytest.MonkeyPatch) -> None:
                 raise main.openai.RateLimitError(
                     "retry", response=response, body=None
                 )
+            _write_ready_artifacts(tmp_path)
 
     fake = FakeAgent()
     monkeypatch.setattr(main, "build_backend", lambda workspace: object())
     monkeypatch.setattr(main, "build_agent", lambda backend, checkpointer: fake)
     main.run_agent(
-        Path("."),
+        tmp_path,
         max_retries=1,
         thread_id="stable",
         sleep=lambda _: None,
@@ -250,7 +359,49 @@ def test_run_agent_retries_same_thread(monkeypatch: pytest.MonkeyPatch) -> None:
         call[1]["configurable"]["thread_id"] == "stable" for call in fake.calls
     )
     assert main.RUN_PROMPT in fake.calls[0][0]["messages"][0]["content"]
-    assert "/outputs/result.json" in fake.calls[1][0]["messages"][0]["content"]
+    assert main.RUN_PROMPT in fake.calls[1][0]["messages"][0]["content"]
+
+
+def test_run_agent_repairs_failed_quality_gate_in_same_thread(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    class FakeAgent:
+        def __init__(self) -> None:
+            self.calls: list[tuple[dict, dict]] = []
+
+        def invoke(self, payload, config):
+            self.calls.append((payload, config))
+            _write_ready_artifacts(tmp_path)
+            if len(self.calls) == 1:
+                audit = tmp_path / main.COVERAGE_AUDIT_ARTIFACT
+                audit.write_text(
+                    json.dumps(
+                        _audit_payload(
+                            blocker_count=1,
+                            blockers=["Не проверен последний раздел"],
+                        ),
+                        ensure_ascii=False,
+                    ),
+                    encoding="utf-8",
+                )
+
+    fake = FakeAgent()
+    monkeypatch.setattr(main, "build_backend", lambda workspace: object())
+    monkeypatch.setattr(main, "build_agent", lambda backend, checkpointer: fake)
+    main.run_agent(
+        tmp_path,
+        max_retries=1,
+        thread_id="stable",
+        sleep=lambda _: None,
+    )
+
+    assert len(fake.calls) == 2
+    assert all(
+        call[1]["configurable"]["thread_id"] == "stable" for call in fake.calls
+    )
+    repair_prompt = fake.calls[1][0]["messages"][0]["content"]
+    assert "blocker_count is not zero" in repair_prompt
+    assert "audit-файла" in repair_prompt
 
 
 def test_main_publishes_single_agent_artifact(
@@ -262,12 +413,7 @@ def test_main_publishes_single_agent_artifact(
 
     def fake_run(workspace: Path, **kwargs) -> None:
         seen["workspace"] = workspace
-        result = workspace / main.RESULT_ARTIFACT
-        result.parent.mkdir(parents=True, exist_ok=True)
-        result.write_text(
-            json.dumps(_result_payload(), ensure_ascii=False),
-            encoding="utf-8",
-        )
+        _write_ready_artifacts(workspace)
 
     monkeypatch.setattr(main, "run_agent", fake_run)
     code = main.main(
