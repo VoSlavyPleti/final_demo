@@ -23,6 +23,8 @@
     "orientation": "contract",
     "soft_mapping": "A mapped contract group is correct when predicted matrix_ids intersect its verified candidate pool.",
     "status": "Deviation labels are limited to the five deviations in the legal gold; operational extras remain extra.",
+    "placeholder": "A contract placeholder is deviation when the matched matrix requirement contains a concrete value; use unresolved_draft_parameter and do not create missing for the same matrix row.",
+    "selector_scope": "Infer product, payment-method and terminal scope from all operative contract clauses, including currently unmapped candidates. Use direct operative clauses or a coherent cluster of strong semantic analogs; one weak thematic match or future activation option is insufficient.",
     "exclusions": "Definitions 1.1-1.47 and non-operative parent clause 4.2.20 are excluded.",
     "missing": "Only mandatory, applicable matrix requirements with no recovered semantic analog are missing.",
     "recovered_matrix_coverage": {

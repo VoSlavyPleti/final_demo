@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import shutil
+import uuid
 
 import httpx
 import pytest
@@ -12,115 +13,42 @@ import main
 
 def _result_payload() -> dict:
     return {
-        "schema_version": "contract-matrix-map.v4",
-        "completion_status": "complete",
+        "schema_version": "contract-matrix-map.v6",
         "contract_items": [
             {
                 "contract_id": "1.1",
-                "contract_text": "Исполнитель оказывает услуги.",
                 "matrix_ids": ["2.1"],
                 "status": "aligned",
-                "comment": "Юридический механизм совпадает.",
+                "comment": "Обязанность оказать услугу совпадает.",
             },
             {
                 "contract_id": "1.2",
-                "contract_text": "Новое самостоятельное обязательство.",
                 "matrix_ids": [],
                 "status": "extra_in_contract",
-                "comment": "Юридического аналога нет.",
-            }
+                "comment": (
+                    "Добавлена не предусмотренная матрицей обязанность "
+                    "Предприятия передавать ежемесячный отчёт."
+                ),
+            },
         ],
         "matrix_items": [
             {
                 "matrix_id": "3.1",
-                "matrix_text": "Обязательное требование.",
-                "required_type": "mandatory",
                 "status": "missing_in_contract",
-                "comment": "Применимо, аналог отсутствует.",
+                "comment": (
+                    "Mandatory-требование применимо; обязанность получить "
+                    "согласия работников отсутствует во всём договоре."
+                ),
             },
         ],
-        "review_items": [],
     }
 
 
-def _audit_payload(**overrides) -> dict:
-    payload = {
-        "schema_version": "contract-review-coverage.v2",
-        "completion_status": "complete",
-        "source_contract_item_count": 2,
-        "result_contract_item_count": 2,
-        "source_contract_ids": ["1.1", "1.2"],
-        "result_contract_ids": ["1.1", "1.2"],
-        "contract_inventory_complete": True,
-        "all_contract_items_processed": True,
-        "mandatory_matrix_sweep_complete": True,
-        "business_aligned_challenge_complete": True,
-        "business_deviation_sweep_complete": True,
-        "suppression_sweep_complete": True,
-        "main_idea_evidence_check_complete": True,
-        "status_audit_complete": True,
-        "number_neutrality_review_complete": True,
-        "mapping_cliff_review_complete": True,
-        "unprocessed_contract_ids": [],
-        "duplicate_contract_ids": [],
-        "synthetic_contract_ids": [],
-        "unresolved_sections": [],
-        "blocker_count": 0,
-        "blockers": [],
-    }
-    payload.update(overrides)
-    return payload
-
-
-def _status_audit_payload(**overrides) -> dict:
-    payload = {
-        "schema_version": "contract-review-status-audit.v1",
-        "completion_status": "complete",
-        "deviation_decisions": [],
-        "extra_decisions": [
-            {
-                "contract_id": "1.2",
-                "candidate_matrix_ids_checked": [],
-                "operational_effect": "Самостоятельная обязанность.",
-                "no_shared_business_proposition_reason": "Аналогов нет.",
-                "decision": "extra_in_contract",
-            }
-        ],
-        "missing_decisions": [
-            {
-                "matrix_id": "3.1",
-                "semantic_candidates_checked": [],
-                "same_relationship_partial_analog_found": False,
-                "applicability_basis": "Применимая mandatory-строка.",
-                "no_analog_reason": "Аналогов нет.",
-                "decision": "missing_in_contract",
-            }
-        ],
-        "rejected_deviation_candidates": [],
-        "blocker_count": 0,
-        "blockers": [],
-    }
-    payload.update(overrides)
-    return payload
-
-
-def _write_ready_artifacts(workspace: Path) -> None:
+def _write_result(workspace: Path, payload: dict | None = None) -> None:
     result = workspace / main.RESULT_ARTIFACT
     result.parent.mkdir(parents=True, exist_ok=True)
     result.write_text(
-        json.dumps(_result_payload(), ensure_ascii=False),
-        encoding="utf-8",
-    )
-    audit = workspace / main.COVERAGE_AUDIT_ARTIFACT
-    audit.parent.mkdir(parents=True, exist_ok=True)
-    audit.write_text(
-        json.dumps(_audit_payload(), ensure_ascii=False),
-        encoding="utf-8",
-    )
-    status_audit = workspace / main.STATUS_AUDIT_ARTIFACT
-    status_audit.parent.mkdir(parents=True, exist_ok=True)
-    status_audit.write_text(
-        json.dumps(_status_audit_payload(), ensure_ascii=False),
+        json.dumps(payload or _result_payload(), ensure_ascii=False),
         encoding="utf-8",
     )
 
@@ -153,9 +81,10 @@ def test_prepare_workspace_mounts_one_domain_skill(tmp_path: Path) -> None:
         mounted = workspace / "skills" / "contract-matrix-review"
         assert (mounted / "SKILL.md").is_file()
         assert (mounted / "references" / "business-deviation-policy.md").is_file()
-        assert (mounted / "references" / "worked-examples.md").is_file()
+        assert not (mounted / "references" / "business-target-filter.md").exists()
+        assert (mounted / "references" / "business-casebook.md").is_file()
         assert (mounted / "references" / "output-schema.md").is_file()
-        assert not (mounted / "references" / "calibration.md").exists()
+        assert not (mounted / "scripts").exists()
         assert len(list((workspace / "skills").iterdir())) == 1
     finally:
         shutil.rmtree(workspace, ignore_errors=True)
@@ -173,7 +102,7 @@ def test_prepare_workspace_validates_paths(tmp_path: Path) -> None:
         main.prepare_workspace(tmp_path / "missing.txt", matrix, tmp_path / "x.json")
 
 
-def test_build_agent_uses_builtin_general_purpose_subagent(
+def test_build_agent_uses_harness_defaults(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     captured: dict = {}
@@ -193,85 +122,182 @@ def test_build_agent_uses_builtin_general_purpose_subagent(
     assert "tools" not in captured
 
 
-def test_prompts_define_autonomy_and_completion_contract() -> None:
+def test_prompts_only_define_context_and_deliverable() -> None:
     system = main.AGENT_SYSTEM_PROMPT.lower()
     user = main.RUN_PROMPT.lower()
+    combined = "\n".join((system, user))
 
-    assert system.count("/outputs/result.json") == 1
-    assert "/outputs/result.json" not in user
-    assert "/outputs/working/coverage-audit.json" in system
-    assert "/skills/contract-matrix-review/" in system
-    assert "сам выбирай инструменты" in system
-    assert "general-purpose" in system
-    assert "contract-mapper" not in system
-    assert "статусный артефакт" in system
-    assert "blocker_count" in system
-    assert "нулевой смысловой вес нумерации" in system
-    assert "равны нулю" in system
-    assert "сам выбирай инструменты" in system
-    assert not (main.PROMPTS_ROOT / "mapping-worker-system.md").exists()
+    assert "/inputs/contract.txt" not in system
+    assert "/inputs/matrix.json" not in system
+    assert "/outputs/result.json" not in system
+    assert "/inputs/contract.txt" in user
+    assert "/inputs/matrix.json" in user
+    assert "/skills/contract-matrix-review/" in user
+    assert "/outputs/result.json" in user
+    assert "единственным источником бизнес-правил" in system
+    assert "самостоятельно организуй" in system
+    assert "все исходные пункты договора" in user
+    assert "повторяющиеся номера не объединены" in user
+    assert "однозначный `source_locator`" in user
+    assert "ровно одна запись и один итоговый статус" in user
+    assert "одну полную проверку охвата" in user
+    assert "отсутствие точки не позволяет" in user
+    assert not (main.PROMPTS_ROOT / "quality-repair-user.md").exists()
 
-    assert "каждый собственный нумерованный" in user
-    assert "не завершай" in user
-    assert "missing-sweep" in user
-    assert "business deviations" in user
-    assert "main_idea" in system
-    assert "number_neutrality_review_complete" in system
+    for forbidden in (
+        "write_todos",
+        "subagent",
+        "status-audit",
+        "coverage-audit",
+        "missing-sweep",
+        "adversarial",
+        "рабочий процесс",
+        "построй полную первичную карту",
+        "одним итоговым проходом",
+        "повторяй проверку",
+        "general-purpose",
+        "deviation",
+        "extra_in_contract",
+        "missing_in_contract",
+    ):
+        assert forbidden not in combined
 
 
-def test_skill_defines_one_artifact_and_requested_columns() -> None:
+def test_trace_persists_metadata_without_payload_text(tmp_path: Path) -> None:
+    trace = tmp_path / main.TRACE_ARTIFACT
+    handler = main.CompactTraceHandler(trace)
+    run_id = uuid.uuid4()
+    secret = "СЕКРЕТНЫЙ ТЕКСТ ДОГОВОРА"
+
+    handler.on_tool_start(
+        {"name": "read_file"},
+        '{"file_path":"/inputs/contract.txt","note":"' + secret + '"}',
+        run_id=run_id,
+    )
+    handler.on_tool_end(secret, run_id=run_id)
+
+    raw_trace = trace.read_text(encoding="utf-8")
+    events = [json.loads(line) for line in raw_trace.splitlines()]
+    assert secret not in raw_trace
+    assert events[0]["paths"] == ["inputs/contract.txt"]
+    assert events[0]["input_size_bytes"] > 0
+    assert len(events[0]["input_sha256"]) == 64
+    assert events[1]["output_size_bytes"] > 0
+    assert len(events[1]["output_sha256"]) == 64
+    assert main.CompactTraceHandler._safe_paths(
+        '{"file_path":"tmp/mapping-stage-a.json"}'
+    ) == ["tmp/mapping-stage-a.json"]
+    assert main.CompactTraceHandler._safe_paths(
+        "Проверить outputs/result.json и перечитать результат"
+    ) == ["outputs/result.json"]
+
+
+def test_skill_separates_mapping_policy_and_target_casebook() -> None:
     skill = main.DOMAIN_SKILL_SOURCE / "SKILL.md"
     text = skill.read_text(encoding="utf-8")
     policy = (
         skill.parent / "references" / "business-deviation-policy.md"
     ).read_text(encoding="utf-8")
-    examples = (
-        skill.parent / "references" / "worked-examples.md"
-    ).read_text(encoding="utf-8")
     schema = (
         skill.parent / "references" / "output-schema.md"
     ).read_text(encoding="utf-8")
-    combined = text + policy + examples + schema
+    casebook = (
+        skill.parent / "references" / "business-casebook.md"
+    ).read_text(encoding="utf-8")
+    combined = "\n".join((text, policy, casebook, schema))
+    policy_compact = " ".join(policy.lower().split())
+
+    assert all(
+        path.suffix.lower() == ".md"
+        for path in main.DOMAIN_SKILL_SOURCE.rglob("*")
+        if path.is_file()
+    )
 
     assert text.startswith("---\n")
-    assert "/outputs/result.json" not in combined
-    assert "analysis.json" not in text
+    assert "description: \"" in text
+    assert "эквайринга" in text
+    assert "задаёт только метод анализа" in policy
+    assert "общая тема без такой связи не образует mapping" in policy.lower()
+    assert "обрезать формальным лимитом" in policy.lower()
+    assert "остаточный статус" in policy.lower()
+    assert "совпадает с casebook по правоотношению" in policy.lower()
+    assert "placeholder в действующем условии" in casebook.lower()
+    assert "всегда образует c01" in casebook.lower()
+    assert "не создавай для той же строки одновременно deviation и missing" in policy_compact
+    assert "отсутствующего внешнего текста" in policy.lower()
+    assert "не является основанием добавить" in policy_compact
+    assert "внутреннее противоречие не является основанием" in policy_compact
+    assert "право одной стороны потребовать действие" in policy.lower()
+    assert "подписываемое заверение" in text.lower()
+    assert "main_idea" in text
+    assert "не создаёт и не расширяет требование" in text
+    assert "main_idea" not in policy
+    assert "main_idea" not in casebook
+    assert "source_locator" not in policy
+    assert "source_locator" not in casebook
+    assert "порядок выбора статуса" in policy.lower()
+    assert "не подбирай строку только ради устранения" in policy_compact
+    assert "если смысловых аналогов нет" in policy_compact
+    assert "сначала ищи наиболее точный аналог" in policy_compact
+    assert "может быть частичным аналогом" in policy_compact
+    assert "приоритетные исключения" not in combined.lower()
+    assert "raw_delta" not in combined.lower()
+    assert "raw-deltas.json" not in combined.lower()
+    assert "business-target-filter" not in combined.lower()
+
     assert '"contract_items"' in schema
     assert '"matrix_items"' in schema
-    assert '"review_items"' in schema
-    assert '"contract_text"' in schema
-    assert '"matrix_text"' in schema
     assert '"matrix_ids"' in schema
-    assert "contract-matrix-map.v4" in schema
-    assert "каждый собственный номер основного текста договора" in text
-    assert "не объединять разные нумерованные пункты" in text.lower()
-    assert "нумерации" in text.lower()
-    assert "полей и таблиц приложения" in text.lower()
-    assert "not_applicable" in text
-    assert "uncertain_applicability" in text
-    assert "uncertain_mapping" in combined
-    assert "не более трёх" in text.lower()
-    assert "тому же правоотношению" in text.lower()
-    assert "совпадающее положение в другом месте" in text.lower()
-    assert "amount_or_rate" in policy
-    assert "payment_mechanism" in policy
-    assert "bank_right" in policy
-    assert "required_scope" in policy
-    assert "deadline_or_date" in policy
-    assert "channel_or_form" in policy
-    assert "data_transfer" in policy
-    assert "other_material" in policy
-    assert "main_idea" in text
-    assert "`main_idea` не участвует в gate" in policy.lower()
-    assert "ндс или налоговому режиму" in policy.lower()
-    assert "не создавать `missing_in_contract`" in examples.lower()
-    assert "complete_with_review" in schema
-    assert "не готовить redline" not in combined.lower()
-    assert "не заменять решение" not in combined.lower()
-    assert "окончательным юридическим заключением" not in combined.lower()
-    assert "финальная выборка" not in schema.lower()
-    assert "gold" not in combined.lower()
-    assert "kavkaz" not in combined.lower()
+    assert '"status"' in schema
+    assert '"comment"' in schema
+    assert "contract-matrix-map.v6" in schema
+    assert '"source_locator"' in schema
+    assert "не создавай синтетический номер" in schema
+    assert '"contract_text"' not in schema
+    assert '"matrix_text"' not in schema
+    assert '"review_items"' not in schema
+    assert '"completion_status"' not in schema
+
+    for forbidden in (
+        "write_todos",
+        "subagent",
+        "не более трёх",
+        "рабочий процесс",
+        "status-audit",
+        "coverage-audit",
+        "business_category",
+    ):
+        assert forbidden not in combined
+
+
+def test_casebook_is_independent_and_has_no_gold_anchors() -> None:
+    skill_root = main.DOMAIN_SKILL_SOURCE
+    casebook = skill_root / "references" / "business-casebook.md"
+    target_filter = skill_root / "references" / "business-target-filter.md"
+    casebook_text = casebook.read_text(encoding="utf-8").lower()
+    combined = "\n".join(
+        path.read_text(encoding="utf-8").lower()
+        for path in (skill_root / "SKILL.md", *skill_root.rglob("*.md"))
+    )
+
+    assert casebook.is_file()
+    assert not target_filter.exists()
+    assert "business-casebook" in combined
+    assert casebook_text.count("\n## c") == 21
+    assert "контрольные примеры границы статусов" in casebook_text
+    assert "ту же строку матрицы не дублировать как `missing_in_contract`" in casebook_text
+    assert "совпадающий пункт — `aligned`, противоречащий — `deviation`" in casebook_text
+    assert "пример:" not in casebook_text
+    assert "gold" not in casebook_text
+    assert "benchmark" not in casebook_text
+    for leaked_reference in (
+        "kaluga",
+        "kuzbas",
+        "irkutsk",
+        "kavkaz",
+        "altai",
+    ):
+        assert leaked_reference not in casebook_text
 
 
 def test_windows_backend_maps_virtual_paths_and_utf8(tmp_path: Path) -> None:
@@ -287,45 +313,188 @@ def test_windows_backend_maps_virtual_paths_and_utf8(tmp_path: Path) -> None:
     assert (tmp_path / "outputs" / "кириллица.txt").is_file()
 
 
-def test_quality_gate_requires_completed_agent_audit(tmp_path: Path) -> None:
-    _write_ready_artifacts(tmp_path)
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("/outputs/result.json", "outputs/result.json"),
+        ("C:/outputs/result.json", "outputs/result.json"),
+        (r"D:\inputs\contract.txt", r"inputs\contract.txt"),
+        ("/skills/review/SKILL.md", "skills/review/SKILL.md"),
+    ],
+)
+def test_windows_backend_normalizes_workspace_aliases(
+    source: str, expected: str
+) -> None:
+    assert (
+        main.WindowsPowerShellBackend._normalize_virtual_shell_paths(source)
+        == expected
+    )
+
+
+def test_windows_backend_does_not_rewrite_unrelated_paths() -> None:
+    command = (
+        "Get-Content C:/temp/outputs/result.json; "
+        "Invoke-WebRequest https://example.test/outputs/result.json"
+    )
+    assert (
+        main.WindowsPowerShellBackend._normalize_virtual_shell_paths(command)
+        == command
+    )
+
+
+def test_python_script_maps_drive_rooted_output_to_workspace(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "outputs").mkdir()
+    filename = f"path-regression-{tmp_path.name}.txt"
+    physical_alias = Path("C:/outputs") / filename
+    assert not physical_alias.exists()
+
+    script = tmp_path / "review_result.py"
+    script.write_text(
+        "from pathlib import Path\n"
+        f"target = Path('C:/outputs/nested/{filename}')\n"
+        "target.parent.mkdir(parents=True, exist_ok=True)\n"
+        "assert target.parent.exists()\n"
+        "target.write_text('reviewed', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+
+    result = main.build_backend(tmp_path).execute("python review_result.py")
+
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "outputs" / "nested" / filename).read_text(
+        encoding="utf-8"
+    ) == "reviewed"
+    assert not physical_alias.exists()
+
+
+def test_python_script_maps_virtual_open_to_workspace(tmp_path: Path) -> None:
+    (tmp_path / "outputs").mkdir()
+    script = tmp_path / "write_result.py"
+    script.write_text(
+        "with open('/outputs/result.txt', 'w', encoding='utf-8') as stream:\n"
+        "    stream.write('workspace')\n",
+        encoding="utf-8",
+    )
+
+    result = main.build_backend(tmp_path).execute("python write_result.py")
+
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "outputs" / "result.txt").read_text(
+        encoding="utf-8"
+    ) == "workspace"
+
+
+def test_python_reviewer_updates_workspace_result_not_drive_root(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "outputs").mkdir()
+    filename = f"review-{tmp_path.name}.json"
+    workspace_result = tmp_path / "outputs" / filename
+    workspace_result.write_text('{"status": "draft"}', encoding="utf-8")
+    physical_alias = Path("C:/outputs") / filename
+    assert not physical_alias.exists()
+
+    script = tmp_path / "fix_result.py"
+    script.write_text(
+        "import json\n"
+        f"with open('C:/outputs/{filename}', 'r', encoding='utf-8') as stream:\n"
+        "    data = json.load(stream)\n"
+        "data['status'] = 'reviewed'\n"
+        f"with open('C:/outputs/{filename}', 'w', encoding='utf-8') as stream:\n"
+        "    json.dump(data, stream)\n",
+        encoding="utf-8",
+    )
+
+    result = main.build_backend(tmp_path).execute("python fix_result.py")
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(workspace_result.read_text(encoding="utf-8")) == {
+        "status": "reviewed"
+    }
+    assert not physical_alias.exists()
+
+
+def test_quality_gate_accepts_minimal_result(tmp_path: Path) -> None:
+    _write_result(tmp_path)
     assert main.quality_gate_failures(tmp_path) == []
 
-    audit_path = tmp_path / main.COVERAGE_AUDIT_ARTIFACT
-    audit_path.write_text(
-        json.dumps(
-            _audit_payload(
-                blocker_count=1,
-                blockers=["Раздел 6 не проверен"],
-                mapping_cliff_review_complete=False,
-                number_neutrality_review_complete=False,
-            ),
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
-    failures = main.quality_gate_failures(tmp_path)
-    assert any("blocker_count" in failure for failure in failures)
-    assert any("mapping_cliff_review_complete" in failure for failure in failures)
-    assert any(
-        "number_neutrality_review_complete" in failure for failure in failures
-    )
-    assert any("blockers is not empty" in failure for failure in failures)
 
-    status_path = tmp_path / main.STATUS_AUDIT_ARTIFACT
-    status_path.write_text(
-        json.dumps(
-            _status_audit_payload(
-                blocker_count=1,
-                blockers=["Не проверены кандидаты deviation"],
-            ),
-            ensure_ascii=False,
-        ),
-        encoding="utf-8",
-    )
+def test_quality_gate_rejects_legacy_fields_and_invalid_items(
+    tmp_path: Path,
+) -> None:
+    payload = _result_payload()
+    payload["completion_status"] = "complete"
+    payload["contract_items"][0]["contract_text"] = "Лишний исходный текст"
+    payload["matrix_items"][0]["matrix_id"] = "2.1"
+    _write_result(tmp_path, payload)
+
     failures = main.quality_gate_failures(tmp_path)
-    assert any("status audit blocker_count" in failure for failure in failures)
-    assert any("status audit blockers is not empty" in failure for failure in failures)
+    assert any("unsupported top-level keys: completion_status" in item for item in failures)
+    assert any("unsupported keys: contract_text" in item for item in failures)
+    assert any("both mapped and missing_in_contract: 2.1" in item for item in failures)
+
+
+def test_quality_gate_allows_duplicate_source_ids_with_unique_locators(
+    tmp_path: Path,
+) -> None:
+    payload = _result_payload()
+    payload["contract_items"][1]["contract_id"] = "1.1"
+    payload["contract_items"][0]["source_locator"] = "первое вхождение"
+    payload["contract_items"][1]["source_locator"] = "второе вхождение"
+    _write_result(tmp_path, payload)
+    assert main.quality_gate_failures(tmp_path) == []
+
+
+def test_quality_gate_requires_unique_locators_for_duplicate_source_ids(
+    tmp_path: Path,
+) -> None:
+    payload = _result_payload()
+    payload["contract_items"][1]["contract_id"] = "1.1"
+    _write_result(tmp_path, payload)
+    failures = main.quality_gate_failures(tmp_path)
+    assert any("requires source_locator for every occurrence" in item for item in failures)
+
+    payload["contract_items"][0]["source_locator"] = "одно место"
+    payload["contract_items"][1]["source_locator"] = "одно место"
+    _write_result(tmp_path, payload)
+    failures = main.quality_gate_failures(tmp_path)
+    assert any("requires unique source_locator values" in item for item in failures)
+
+
+def test_quality_gate_checks_status_specific_matrix_ids(tmp_path: Path) -> None:
+    payload = _result_payload()
+    payload["contract_items"][0]["matrix_ids"] = []
+    payload["contract_items"][1]["status"] = "not_applicable"
+    payload["contract_items"][1]["matrix_ids"] = ["4.1"]
+    payload["contract_items"].append(
+        {
+            "contract_id": "1.3",
+            "matrix_ids": ["4.2"],
+            "status": "extra_in_contract",
+            "comment": "Самостоятельное условие.",
+        }
+    )
+    _write_result(tmp_path, payload)
+
+    failures = main.quality_gate_failures(tmp_path)
+    assert any("aligned requires at least one matrix_id" in item for item in failures)
+    assert any("not_applicable requires empty matrix_ids" in item for item in failures)
+    assert any("extra_in_contract requires empty matrix_ids" in item for item in failures)
+
+
+def test_quality_gate_rejects_multiple_statuses_without_crashing(
+    tmp_path: Path,
+) -> None:
+    payload = _result_payload()
+    payload["contract_items"][0]["status"] = ["aligned", "deviation"]
+    payload["matrix_items"][0]["status"] = ["missing_in_contract", "needs_review"]
+    _write_result(tmp_path, payload)
+
+    failures = main.quality_gate_failures(tmp_path)
+    assert any("contract_items[0] has unsupported status" in item for item in failures)
+    assert any("matrix_items[0] has unsupported status" in item for item in failures)
 
 
 def test_run_agent_retries_transient_failure_in_same_thread(
@@ -343,7 +512,7 @@ def test_run_agent_retries_transient_failure_in_same_thread(
                 raise main.openai.RateLimitError(
                     "retry", response=response, body=None
                 )
-            _write_ready_artifacts(tmp_path)
+            _write_result(tmp_path)
 
     fake = FakeAgent()
     monkeypatch.setattr(main, "build_backend", lambda workspace: object())
@@ -362,7 +531,7 @@ def test_run_agent_retries_transient_failure_in_same_thread(
     assert main.RUN_PROMPT in fake.calls[1][0]["messages"][0]["content"]
 
 
-def test_run_agent_repairs_failed_quality_gate_in_same_thread(
+def test_run_agent_fails_invalid_result_without_model_repair(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     class FakeAgent:
@@ -371,37 +540,23 @@ def test_run_agent_repairs_failed_quality_gate_in_same_thread(
 
         def invoke(self, payload, config):
             self.calls.append((payload, config))
-            _write_ready_artifacts(tmp_path)
-            if len(self.calls) == 1:
-                audit = tmp_path / main.COVERAGE_AUDIT_ARTIFACT
-                audit.write_text(
-                    json.dumps(
-                        _audit_payload(
-                            blocker_count=1,
-                            blockers=["Не проверен последний раздел"],
-                        ),
-                        ensure_ascii=False,
-                    ),
-                    encoding="utf-8",
-                )
+            invalid = _result_payload()
+            invalid["schema_version"] = "contract-matrix-map.v5"
+            _write_result(tmp_path, invalid)
 
     fake = FakeAgent()
     monkeypatch.setattr(main, "build_backend", lambda workspace: object())
     monkeypatch.setattr(main, "build_agent", lambda backend, checkpointer: fake)
-    main.run_agent(
-        tmp_path,
-        max_retries=1,
-        thread_id="stable",
-        sleep=lambda _: None,
-    )
+    with pytest.raises(RuntimeError, match="structural validation"):
+        main.run_agent(
+            tmp_path,
+            max_retries=1,
+            thread_id="stable",
+            sleep=lambda _: None,
+        )
 
-    assert len(fake.calls) == 2
-    assert all(
-        call[1]["configurable"]["thread_id"] == "stable" for call in fake.calls
-    )
-    repair_prompt = fake.calls[1][0]["messages"][0]["content"]
-    assert "blocker_count is not zero" in repair_prompt
-    assert "audit-файла" in repair_prompt
+    assert len(fake.calls) == 1
+    assert fake.calls[0][1]["configurable"]["thread_id"] == "stable"
 
 
 def test_main_publishes_single_agent_artifact(
@@ -413,7 +568,10 @@ def test_main_publishes_single_agent_artifact(
 
     def fake_run(workspace: Path, **kwargs) -> None:
         seen["workspace"] = workspace
-        _write_ready_artifacts(workspace)
+        _write_result(workspace)
+        trace = workspace / main.TRACE_ARTIFACT
+        trace.parent.mkdir(parents=True, exist_ok=True)
+        trace.write_text('{"event":"test"}\n', encoding="utf-8")
 
     monkeypatch.setattr(main, "run_agent", fake_run)
     code = main.main(
@@ -428,4 +586,5 @@ def test_main_publishes_single_agent_artifact(
     )
     assert code == 0
     assert json.loads(output.read_text(encoding="utf-8")) == _result_payload()
+    assert output.with_name("result.trace.jsonl").is_file()
     assert not seen["workspace"].exists()

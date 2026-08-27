@@ -1,0 +1,1201 @@
+{
+  "schema_version": "contract-review-adjudicated-gold.v2",
+  "document_id": "KAVKAZ",
+  "sources": {
+    "contract": "inputs/kavkaz.txt",
+    "matrix": "inputs/matrix.json",
+    "legal_workbook": "gold_results/Kavkaz_analiz_formattirovannyi.xlsx"
+  },
+  "policy": {
+    "orientation": "contract occurrences",
+    "mapping": "Functional partial analogs are retained; common subject matter alone is insufficient.",
+    "status": "Only casebook deltas are deviations.",
+    "placeholder": "Filling an open matrix field is aligned; a contract blank against a filled matrix value is deviation.",
+    "missing": "A partially covered row is not missing. A mandatory product row is excluded only when its product scope or its own local antecedent is inactive."
+  },
+  "contract_groups": [
+    {
+      "contract_id": "1.1",
+      "matrix_ids": [
+        "2.4",
+        "3.1",
+        "3.2",
+        "3.3",
+        "11.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Предмет раскрыт; приложения указаны как неотъемлемая часть контракта; оплата по постоплате (п/п от Заказчика) vs механизм акцепта требований Банка."
+    },
+    {
+      "contract_id": "1.2",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "Ограничение максимального количества операций не является аналогом срока действия договора из п. 10.1 матрицы."
+    },
+    {
+      "contract_id": "1.3",
+      "matrix_ids": [
+        "3.1",
+        "4.2.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Приём карт является частичным аналогом, но не раскрывает запрет выдачи наличных и количественное ограничение на принимаемые карты; C09."
+    },
+    {
+      "contract_id": "2.3",
+      "matrix_ids": [
+        "2.3",
+        "11.12"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт и непосредственно продолжающий его ненумерованный текст регулируют момент получения электронных сообщений и документов."
+    },
+    {
+      "contract_id": "2.3.1",
+      "matrix_ids": [
+        "2.3.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "2.3.2",
+      "matrix_ids": [
+        "2.3.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "2.3.3",
+      "matrix_ids": [
+        "2.3.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "2.3.4",
+      "matrix_ids": [
+        "2.3.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "2.3.5",
+      "matrix_ids": [
+        "2.3.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица указывает конкретную систему ЭДО, тогда как договор оставляет соответствующее поле незаполненным; отсутствие договорного значения является расхождением."
+    },
+    {
+      "contract_id": "2.3.6",
+      "matrix_ids": [
+        "2.3.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "2.3.7",
+      "matrix_ids": [
+        "2.3.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "3.1",
+      "matrix_ids": [
+        "6.21"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Цена заполняет открытое поле матрицы; значение НДС открыто в обоих источниках и само по себе не образует C01."
+    },
+    {
+      "contract_id": "3.1.1",
+      "matrix_ids": [
+        "6.1",
+        "11.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Спецификация прямо названа неотъемлемой частью контракта."
+    },
+    {
+      "contract_id": "3.2",
+      "matrix_ids": [
+        "6.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "3.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "4.1",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Период оказания услуг и прекращение при исчерпании цены частично соответствуют сроку матрицы; заполнение открытой даты не является целевой дельтой."
+    },
+    {
+      "contract_id": "4.2",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: квалификационное требование"
+    },
+    {
+      "contract_id": "4.3",
+      "matrix_ids": [
+        "2.1"
+      ],
+      "status": "deviation",
+      "adjudication_note": "В матрице: банк вправе отказать без объяснений. В контракте такого права нет — потенциальный риск для банка"
+    },
+    {
+      "contract_id": "4.4",
+      "matrix_ids": [
+        "3.3",
+        "4.2.1",
+        "4.2.12",
+        "5.1.13",
+        "6.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Платёжное поручение заменяет акцепт требования Банка, а письменное уведомление о реквизитах — публикацию на сайте; C03 и C05."
+    },
+    {
+      "contract_id": "4.5",
+      "matrix_ids": [
+        "6.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Срок оплаты отличается: договор устанавливает 7 рабочих дней, матрица — 5 рабочих дней."
+    },
+    {
+      "contract_id": "4.5.1",
+      "matrix_ids": [
+        "6.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Специальный ноябрьский срок относится к той же оплате и расходится с пятидневным сроком матрицы; C04."
+    },
+    {
+      "contract_id": "5.1.1",
+      "matrix_ids": [
+        "5.2.3",
+        "5.2.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Договор добавляет срок установки терминалов 5 рабочих дней, отсутствующий в матрице, и оставляет незаполненным предусмотренный матрицей адрес сайта с обучающими материалами."
+    },
+    {
+      "contract_id": "5.1.2",
+      "matrix_ids": [
+        "6.2",
+        "2.3.6"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Через прямую ссылку на пп. 8.3.1–8.3.2 договор устанавливает формирование документа до 10-го рабочего дня, тогда как п. 6.2 матрицы требует направление до 5-го рабочего дня. Обмен через ЕИС соответствует режиму 44-ФЗ и сам по себе не является риском."
+    },
+    {
+      "contract_id": "5.1.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "Общая обязанность соблюдать законодательство не является юридическим аналогом специальных банковских требований матрицы."
+    },
+    {
+      "contract_id": "5.1.4",
+      "matrix_ids": [
+        "5.2.4",
+        "5.2.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.1.5",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "5.1.6",
+      "matrix_ids": [
+        "5.2.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.1.7",
+      "matrix_ids": [
+        "5.2.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Прямой аналог — обязанность Банка предоставить рекламные материалы; обратное обязательство Предприятия из п. 4.2.4 матрицы не добавляется при наличии прямого кандидата."
+    },
+    {
+      "contract_id": "5.1.8",
+      "matrix_ids": [
+        "2.2",
+        "3.2",
+        "5.2.8"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт прямо устанавливает перечисление сумм операций оплаты на счет Заказчика в валюте проведения операции (рубли РФ)."
+    },
+    {
+      "contract_id": "5.1.9",
+      "matrix_ids": [
+        "5.2.10"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт регулирует электронное взаимодействие Банка с Заказчиком и не покрывает специальные требования к обработке персональных данных работников."
+    },
+    {
+      "contract_id": "5.1.10",
+      "matrix_ids": [
+        "3.2",
+        "5.2.8"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Технический повтор обязанности перечислять Заказчику суммы операций оплаты."
+    },
+    {
+      "contract_id": "5.2.1",
+      "matrix_ids": [
+        "4.2.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Право Исполнителя требовать своевременной оплаты корреспондирует обязанности Предприятия оплачивать услуги и не изменяет срок, сумму или порядок расчетов."
+    },
+    {
+      "contract_id": "5.2.2",
+      "matrix_ids": [
+        "5.1.17",
+        "10.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица предоставляет общее право одностороннего внесудебного расторжения, а договор ограничивает право Исполнителя основаниями 44-ФЗ и ГК РФ; законодательная ссылка не отменяет текстовое различие."
+    },
+    {
+      "contract_id": "5.2.3",
+      "matrix_ids": [
+        "5.1.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.4",
+      "matrix_ids": [
+        "5.1.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.5",
+      "matrix_ids": [
+        "5.1.11"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.6",
+      "matrix_ids": [
+        "5.1.13"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица: публикация на сайте. Контракт: письменное уведомление (более обременительно для банка)"
+    },
+    {
+      "contract_id": "5.2.7",
+      "matrix_ids": [
+        "5.1.14"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.8",
+      "matrix_ids": [
+        "5.1.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9",
+      "matrix_ids": [
+        "5.1.2",
+        "5.1.8",
+        "5.1.8.1",
+        "5.1.8.2",
+        "5.1.8.3",
+        "5.1.8.6",
+        "5.1.8.7",
+        "5.1.8.8",
+        "5.1.8.9",
+        "5.1.8.10",
+        "5.1.8.11",
+        "5.1.8.12",
+        "5.1.8.13"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Общая защитная цепочка совпадает, но приостановление заменяет прекращение авторизации; C15. Отсутствие отдельного долгового триггера не создаёт missing при наличии частичного аналога."
+    },
+    {
+      "contract_id": "5.2.9.1",
+      "matrix_ids": [
+        "5.1.8.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.2",
+      "matrix_ids": [
+        "5.1.8.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.3",
+      "matrix_ids": [
+        "5.1.8.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.4",
+      "matrix_ids": [
+        "5.1.8.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.5",
+      "matrix_ids": [
+        "5.1.8.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.6",
+      "matrix_ids": [
+        "5.1.8.8"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.7",
+      "matrix_ids": [
+        "5.1.8.9"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.8",
+      "matrix_ids": [
+        "5.1.8.10"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.9",
+      "matrix_ids": [
+        "5.1.8.11"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.10",
+      "matrix_ids": [
+        "5.1.8.12"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.9.11",
+      "matrix_ids": [
+        "5.1.8.13"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.10",
+      "matrix_ids": [
+        "5.1.1",
+        "5.1.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Общий механизм удержания сумм анализируется вместе с п. 1.3 связанного Заявления: при невозможности удержания Предприятие предоставляет заранее данный акцепт на списание этих сумм со счёта."
+    },
+    {
+      "contract_id": "5.2.10.1",
+      "matrix_ids": [
+        "5.1.1.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.10.2",
+      "matrix_ids": [
+        "5.1.1.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.2.10.3",
+      "matrix_ids": [
+        "5.1.1.3",
+        "6.20"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Операции возврата и реверсивные транзакции анализируются вместе с условиями связанного Технического задания: плата за их проведение не взимается, ранее удержанная плата не возвращается."
+    },
+    {
+      "contract_id": "5.2.10.4",
+      "matrix_ids": [
+        "5.1.1.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Из локального перечня оспоренных операций исключены операции SberPay/Плати QR; C09."
+    },
+    {
+      "contract_id": "5.2.10.5",
+      "matrix_ids": [
+        "5.1.1.5"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.1",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Общая обязанность принять оказанные услуги соответствует механизму приемки. Отличие конкретного срока и процедуры зафиксировано отдельно в группе 8.5.1 → 6.4."
+    },
+    {
+      "contract_id": "5.3.2",
+      "matrix_ids": [
+        "3.3",
+        "4.2.1",
+        "6.5",
+        "6.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Обязанность Заказчика оплатить услуги Исполнителя; покрывает общую обязанность оплаты услуг Банка/Исполнителя."
+    },
+    {
+      "contract_id": "5.3.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ч. 2 ст. 94"
+    },
+    {
+      "contract_id": "5.3.4",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Право на одностороннее прекращение ограничено специальным основанием и не содержит общего права обеих сторон с уведомлением за 30 дней; C16."
+    },
+    {
+      "contract_id": "5.3.5",
+      "matrix_ids": [
+        "7.4",
+        "7.5",
+        "7.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "5.3.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "5.3.7",
+      "matrix_ids": [
+        "4.2.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.8",
+      "matrix_ids": [
+        "4.2.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.9",
+      "matrix_ids": [
+        "4.2.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.10",
+      "matrix_ids": [
+        "4.2.9"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.11",
+      "matrix_ids": [
+        "4.2.10",
+        "11.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Обязанность обеспечить недоступность документов третьим лицам покрывает соответствующий аспект конфиденциальности."
+    },
+    {
+      "contract_id": "5.3.12",
+      "matrix_ids": [
+        "4.2.11"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.13",
+      "matrix_ids": [
+        "4.2.14"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.14",
+      "matrix_ids": [
+        "4.2.15"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.15",
+      "matrix_ids": [
+        "4.2.16.2",
+        "4.2.16.3"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Механизм подтверждения правомерности передачи ПДн не раскрывает требуемый срок, состав данных работников и весь предусмотренный матрицей периметр получателей; C08."
+    },
+    {
+      "contract_id": "5.3.16",
+      "matrix_ids": [
+        "4.2.18"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.17",
+      "matrix_ids": [
+        "4.2.19",
+        "5.1.10"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт практически дословно покрывает требование 4.2.19 о непрепятствовании проверкам и содействии разбирательству. Связь с правом Банка проводить проверки из 5.1.10 не ухудшает покрытие."
+    },
+    {
+      "contract_id": "5.3.18",
+      "matrix_ids": [
+        "4.2.20",
+        "4.2.20.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.18.1",
+      "matrix_ids": [
+        "4.2.20.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.18.2",
+      "matrix_ids": [
+        "4.2.20.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.18.3",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.18.5",
+      "matrix_ids": [
+        "4.2.20.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.19",
+      "matrix_ids": [
+        "4.2.13"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.3.20",
+      "matrix_ids": [
+        "4.2.16",
+        "4.2.16.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Объединяет 2 пункта матрицы"
+    },
+    {
+      "contract_id": "5.3.20.4",
+      "matrix_ids": [
+        "4.2.20.5"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.4.1",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "5.4.2",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Обязанность Заказчика оплатить услуги Банка является прямым аналогом порядка оплаты услуг по п. 6.4 матрицы."
+    },
+    {
+      "contract_id": "5.4.3",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица предоставляет общее право одностороннего внесудебного расторжения, а договор ограничивает право Заказчика основаниями 44-ФЗ и ГК РФ; законодательная ссылка не отменяет текстовое различие."
+    },
+    {
+      "contract_id": "5.4.4",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "5.4.5",
+      "matrix_ids": [
+        "4.1.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.5",
+      "matrix_ids": [
+        "4.2.11"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Дублирует п. 5.3.12"
+    },
+    {
+      "contract_id": "5.6",
+      "matrix_ids": [
+        "4.2.20.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.7",
+      "matrix_ids": [
+        "4.2.20.7",
+        "5.1.1.6"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица: единая ставка 25 000 за любой терминал. Контракт: ЭТ — 10 000 (расхождение)"
+    },
+    {
+      "contract_id": "5.9",
+      "matrix_ids": [
+        "4.1.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "5.10",
+      "matrix_ids": [
+        "4.2.20.1"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица указывает конкретный адрес сайта для инструктажа, тогда как договор оставляет соответствующее поле незаполненным."
+    },
+    {
+      "contract_id": "6.1",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ: обязательная оговорка"
+    },
+    {
+      "contract_id": "7.1",
+      "matrix_ids": [
+        "7.1",
+        "7.3",
+        "7.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Общая ответственность не покрывает специальную ответственность предприятия за действия персонала; ошибочная ссылка на 7.15 удалена."
+    },
+    {
+      "contract_id": "7.2",
+      "matrix_ids": [
+        "7.1",
+        "7.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ: ч. 5 ст. 34"
+    },
+    {
+      "contract_id": "7.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "Пеня за просрочку исполнения обязательства отличается по юридическому механизму от фиксированного штрафа по п. 7.2 матрицы."
+    },
+    {
+      "contract_id": "7.4",
+      "matrix_ids": [
+        "7.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Фиксированный штраф для Заказчика покрывается п. 7.2 матрицы; иные штрафные нормы Банка к этой группе не относятся."
+    },
+    {
+      "contract_id": "7.4.1",
+      "matrix_ids": [
+        "7.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт устанавливает ответственность Заказчика и не является аналогом ответственности Банка по п. 7.6 матрицы."
+    },
+    {
+      "contract_id": "7.5",
+      "matrix_ids": [
+        "7.4",
+        "7.5",
+        "7.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлен 7.4: прямое право Заказчика/Предприятия требовать неустойки при просрочке или ненадлежащем исполнении Исполнителя/Банка."
+    },
+    {
+      "contract_id": "7.6",
+      "matrix_ids": [
+        "7.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "7.7",
+      "matrix_ids": [
+        "7.1",
+        "7.5"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлен 7.5: родительская норма о штрафах Исполнителя за неисполнение/ненадлежащее исполнение обязательств."
+    },
+    {
+      "contract_id": "7.7.1",
+      "matrix_ids": [
+        "7.5"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "7.7.2",
+      "matrix_ids": [
+        "7.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Для того же штрафа добавлена специальная альтернативная расчётная база и сокращена шкала при закупке за право заключения контракта; C07."
+    },
+    {
+      "contract_id": "7.7.3",
+      "matrix_ids": [
+        "7.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": ""
+    },
+    {
+      "contract_id": "7.8",
+      "matrix_ids": [
+        "2.3.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт прямо регулирует обмен документами через ЕИС, предусмотренный п. 2.3.6 матрицы."
+    },
+    {
+      "contract_id": "7.9",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "7.10",
+      "matrix_ids": [
+        "7.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт относится к ответственности Заказчика; ответственность Банка из п. 7.3 матрицы образует отдельную ролевую норму."
+    },
+    {
+      "contract_id": "7.11",
+      "matrix_ids": [
+        "7.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт относится к ответственности Банка; ответственность Заказчика из п. 7.7 матрицы образует отдельную ролевую норму."
+    },
+    {
+      "contract_id": "7.12",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "8.5.1",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Договор устанавливает подписание документа или мотивированный отказ в течение 10 рабочих дней с его поступления; матрица требует возврата подписанного УПД или отказа не позднее 25-го числа следующего месяца. Отличаются срок и запускающее событие."
+    },
+    {
+      "contract_id": "8.11",
+      "matrix_ids": [
+        "6.5"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Исправлено с несуществующего 8.12: в активном договоре этот смысл содержится в 8.11; подписанный документ о приемке является основанием для оплаты."
+    },
+    {
+      "contract_id": "8.1",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.2",
+      "matrix_ids": [
+        "7.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Ответственность исполнителя за причинённый его специалистами ущерб является частным случаем общей ответственности той же стороны."
+    },
+    {
+      "contract_id": "8.3.1",
+      "matrix_ids": [
+        "6.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Договор устанавливает формирование документа не позднее 10-го рабочего дня следующего месяца, матрица — направление УПД не позднее 5-го рабочего дня. Использование ЕИС соответствует 44-ФЗ и не является самостоятельным риском."
+    },
+    {
+      "contract_id": "8.3.2",
+      "matrix_ids": [
+        "2.4",
+        "6.2",
+        "6.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт предусматривает оплату на основании акта и счёта по форме 363, что прямо покрывает п. 6.3 матрицы."
+    },
+    {
+      "contract_id": "8.4",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.5",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.5.2",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.5.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.5.4",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.5.5",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.5.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.5.7",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Подписание и размещение документа приёмки относится к возврату сопоставимого приёмочного документа, но срок изменён; C14."
+    },
+    {
+      "contract_id": "8.5.8",
+      "matrix_ids": [
+        "6.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Комиссионный порядок подписания или отказа относится к той же приёмочной цепочке, но устанавливает иной срок и механизм; C14."
+    },
+    {
+      "contract_id": "8.5.9",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.7",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.9",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "8.10",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ст. 94"
+    },
+    {
+      "contract_id": "9.1",
+      "matrix_ids": [
+        "8.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ / ГК РФ"
+    },
+    {
+      "contract_id": "9.2",
+      "matrix_ids": [
+        "8.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Договор требует уведомить о форс-мажоре в течение 5 дней вместо 24 часов по матрице и допускает расторжение после одного месяца вместо трех месяцев."
+    },
+    {
+      "contract_id": "9.3",
+      "matrix_ids": [
+        "8.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Документальное подтверждение форс-мажора является процедурной частью того же механизма освобождения."
+    },
+    {
+      "contract_id": "10.1",
+      "matrix_ids": [
+        "9.1",
+        "9.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "10.2",
+      "matrix_ids": [
+        "9.3"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица предусматривает разрешение споров в соответствии с законодательством РФ, а договор устанавливает конкретную договорную подсудность — Арбитражный суд Краснодарского края."
+    },
+    {
+      "contract_id": "11.1",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Срок начинается с заключения и сохраняет прекращение при исчерпании цены; заполнение открытой даты матрицы не является дельтой."
+    },
+    {
+      "contract_id": "11.2",
+      "matrix_ids": [
+        "11.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Наряду с совпадающим требованием письменной формы изменений договор добавляет самостоятельную обязанность письменно уведомить другую сторону об изменении места нахождения или названия в течение двух дней."
+    },
+    {
+      "contract_id": "11.3",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица предусматривает общее внесудебное одностороннее расторжение, а договор перечисляет соглашение сторон, судебный порядок и отказ в соответствии с гражданским законодательством."
+    },
+    {
+      "contract_id": "11.4",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица предоставляет право досрочного одностороннего расторжения любой стороне, а договор закрепляет специальное право Заказчика по основаниям ГК РФ."
+    },
+    {
+      "contract_id": "11.5",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Односторонний отказ ограничен основаниями ГК РФ и процедурой статьи 95 Закона № 44-ФЗ вместо общего внесудебного права обеих сторон с уведомлением за 30 дней; C16."
+    },
+    {
+      "contract_id": "11.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "Общая ссылка на законный порядок изменения и расторжения контракта не устанавливает самостоятельный механизм одностороннего отказа из п. 10.2 матрицы и не является юридическим аналогом этого требования."
+    },
+    {
+      "contract_id": "11.7",
+      "matrix_ids": [
+        "11.1"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица относит к источникам регулирования также правила, стандарты и рекомендации платёжной системы, а договор содержит только общую ссылку на законодательство РФ."
+    },
+    {
+      "contract_id": "11.8",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ч. 2 ст. 34"
+    },
+    {
+      "contract_id": "12.1",
+      "matrix_ids": [
+        "11.9",
+        "11.10"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица устанавливает двусторонний запрет передачи прав и обязанностей без согласия другой стороны, а договор регулирует только перемену Исполнителя и правопреемство при отдельных формах реорганизации."
+    },
+    {
+      "contract_id": "12.2",
+      "matrix_ids": [
+        "11.10"
+      ],
+      "status": "aligned",
+      "adjudication_note": "44-ФЗ"
+    },
+    {
+      "contract_id": "12.3",
+      "matrix_ids": [],
+      "status": "extra_in_contract",
+      "adjudication_note": "44-ФЗ: ч. 7 ст. 95"
+    },
+    {
+      "contract_id": "12.4",
+      "matrix_ids": [
+        "2.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пункт прямо допускает электронный обмен документами и использование электронной подписи."
+    }
+  ],
+  "missing_matrix_ids": [
+    "2.6.3.2",
+    "4.2.8",
+    "5.1.7",
+    "5.1.9",
+    "7.15"
+  ],
+  "excluded_contract_ids": [
+    "8.8"
+  ],
+  "counts": {
+    "operational_contract_groups": 146,
+    "mapped_contract_groups": 118,
+    "aligned": 88,
+    "deviation": 30,
+    "extra_in_contract": 28,
+    "missing_in_contract": 5
+  }
+}

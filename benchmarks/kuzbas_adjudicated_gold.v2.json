@@ -1,0 +1,1099 @@
+{
+  "schema_version": "contract-review-adjudicated-gold.v2",
+  "document_id": "KUZBAS",
+  "sources": {
+    "contract": "kyzbas.txt",
+    "matrix": "inputs/matrix.json",
+    "legal_workbook": "gold_results/kuzbas_stomat_analysis_v1.xlsx",
+    "verified_gold": "benchmarks/kuzbas_verified_gold.v1.json"
+  },
+  "policy": {
+    "orientation": "contract occurrences",
+    "mapping": "Any full or partial semantic analog prevents extra and prevents simultaneous missing for that matrix row.",
+    "status": "Only casebook deltas are deviations; mapped provisions without a target delta are aligned.",
+    "scope": "Selectors restrict only matrix-side missing. An exact or strong contract-side analog is always evaluated."
+  },
+  "counts": {
+    "operational_contract_groups": 138,
+    "mapped_contract_groups": 137,
+    "aligned": 117,
+    "deviation": 20,
+    "extra_in_contract": 1,
+    "missing_in_contract": 1
+  },
+  "contract_groups": [
+    {
+      "contract_id": "2.1",
+      "matrix_ids": [
+        "2.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.2",
+      "matrix_ids": [
+        "2.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.3",
+      "matrix_ids": [
+        "2.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.3.1",
+      "matrix_ids": [
+        "2.3.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.3.2",
+      "matrix_ids": [
+        "2.3.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.3.3",
+      "matrix_ids": [
+        "2.3.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.3.4",
+      "matrix_ids": [
+        "2.3.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.3.5",
+      "matrix_ids": [
+        "2.3.5"
+      ],
+      "status": "deviation"
+    },
+    {
+      "contract_id": "2.3.6",
+      "matrix_ids": [
+        "2.3.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Точный договорный аналог оценивается независимо от lot-selector матрицы."
+    },
+    {
+      "contract_id": "2.3.7",
+      "matrix_ids": [
+        "2.3.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.4",
+      "matrix_ids": [
+        "2.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.5",
+      "matrix_ids": [
+        "2.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "3.1",
+      "matrix_ids": [
+        "3.1"
+      ],
+      "status": "deviation",
+      "adjudication_note": "QR-scope активирован прямыми обязанностями предоставить QR-код и QR-API, но из предметного перечня исключены предусмотренные матрицей QR-способы оплаты; C09."
+    },
+    {
+      "contract_id": "3.2",
+      "matrix_ids": [
+        "3.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "3.3",
+      "matrix_ids": [
+        "3.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.1.1",
+      "matrix_ids": [
+        "4.1.1"
+      ],
+      "status": "deviation",
+      "adjudication_note": "QR-scope активирован, но из права упоминать способы оплаты в информационных материалах исключён QR-код; C09."
+    },
+    {
+      "contract_id": "4.1.2",
+      "matrix_ids": [
+        "4.1.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.1.3",
+      "matrix_ids": [
+        "4.1.3"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Сильный аналог права использовать полученные от Банка средства оплаты не называет QR-код и исключает предусмотренные матрицей QR-способы; C09."
+    },
+    {
+      "contract_id": "4.2.1",
+      "matrix_ids": [
+        "4.2.1",
+        "6.7",
+        "6.13"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Активные терминалы используются, но обязанность оплаты не устанавливает отдельную сервисную плату; C06."
+    },
+    {
+      "contract_id": "4.2.2",
+      "matrix_ids": [
+        "4.2.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.3",
+      "matrix_ids": [
+        "4.2.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.4",
+      "matrix_ids": [
+        "4.2.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "QR-scope активирован, но из обязанности размещать материалы исключены предусмотренные матрицей QR-способы оплаты; C09."
+    },
+    {
+      "contract_id": "4.2.5",
+      "matrix_ids": [
+        "4.2.5"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.6",
+      "matrix_ids": [
+        "4.2.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.7",
+      "matrix_ids": [
+        "4.2.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.8",
+      "matrix_ids": [
+        "4.2.8"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.9",
+      "matrix_ids": [
+        "4.2.9"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.10",
+      "matrix_ids": [
+        "4.2.10"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.11",
+      "matrix_ids": [
+        "4.2.11"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.12",
+      "matrix_ids": [
+        "4.2.12",
+        "5.1.3",
+        "5.1.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Акцепт требования относится к той же цепочке взыскания, но не сохраняет списание без дополнительного распоряжения; C03."
+    },
+    {
+      "contract_id": "4.2.13",
+      "matrix_ids": [
+        "4.2.13"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.14",
+      "matrix_ids": [
+        "4.2.14"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.15",
+      "matrix_ids": [
+        "4.2.15"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.16",
+      "matrix_ids": [
+        "4.2.16"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.16.1",
+      "matrix_ids": [
+        "4.2.16.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.16.2",
+      "matrix_ids": [
+        "4.2.16.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.16.3",
+      "matrix_ids": [
+        "4.2.16.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.17",
+      "matrix_ids": [
+        "4.2.17"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Точный аналог PCI DSS не содержит назначенного матрицей адреса направления результатов; C05."
+    },
+    {
+      "contract_id": "4.2.18",
+      "matrix_ids": [
+        "4.2.18"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.19",
+      "matrix_ids": [
+        "4.2.19"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.20.1",
+      "matrix_ids": [
+        "4.2.20.1"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица назначает конкретный URL инструктажа, а договор оставляет только неопределённый официальный сайт Банка; C05."
+    },
+    {
+      "contract_id": "4.2.20.2",
+      "matrix_ids": [
+        "4.2.20.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.20.3",
+      "matrix_ids": [
+        "4.2.20.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.20.4",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.20.5",
+      "matrix_ids": [
+        "4.2.20.5"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.20.6",
+      "matrix_ids": [
+        "4.2.20.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.20.7",
+      "matrix_ids": [
+        "4.2.20.7"
+      ],
+      "status": "deviation"
+    },
+    {
+      "contract_id": "5.1.1",
+      "matrix_ids": [
+        "5.1.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.1.1",
+      "matrix_ids": [
+        "5.1.1.1"
+      ],
+      "status": "deviation",
+      "adjudication_note": "При активном QR из закрытого перечня недействительных операций исключены прямо предусмотренные матрицей SberPay/Плати QR; C09."
+    },
+    {
+      "contract_id": "5.1.1.2",
+      "matrix_ids": [
+        "5.1.1.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.1.3",
+      "matrix_ids": [
+        "5.1.1.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.1.4",
+      "matrix_ids": [
+        "5.1.1.4"
+      ],
+      "status": "deviation",
+      "adjudication_note": "При активном QR общий термин «Платёжные решения» не сохраняет прямо предусмотренные матрицей SberPay/Плати QR в перечне оспариваемых операций; C09."
+    },
+    {
+      "contract_id": "5.1.1.5",
+      "matrix_ids": [
+        "5.1.1.5"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.1.6",
+      "matrix_ids": [
+        "5.1.1.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.2",
+      "matrix_ids": [
+        "5.1.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.3",
+      "matrix_ids": [
+        "5.1.5"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.4",
+      "matrix_ids": [
+        "5.1.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.5",
+      "matrix_ids": [
+        "5.1.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6",
+      "matrix_ids": [
+        "5.1.8"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.1",
+      "matrix_ids": [
+        "5.1.8.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.2",
+      "matrix_ids": [
+        "5.1.8.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.3",
+      "matrix_ids": [
+        "5.1.8.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.4",
+      "matrix_ids": [
+        "5.1.8.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.5",
+      "matrix_ids": [
+        "5.1.8.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.6",
+      "matrix_ids": [
+        "5.1.8.8"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.7",
+      "matrix_ids": [
+        "5.1.8.9"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.8",
+      "matrix_ids": [
+        "5.1.8.10"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.9",
+      "matrix_ids": [
+        "5.1.8.11"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.10",
+      "matrix_ids": [
+        "5.1.8.12"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.6.11",
+      "matrix_ids": [
+        "5.1.8.13"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.7",
+      "matrix_ids": [
+        "5.1.9"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.8",
+      "matrix_ids": [
+        "5.1.10"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.9",
+      "matrix_ids": [
+        "5.1.11"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.10",
+      "matrix_ids": [
+        "5.1.12"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.11",
+      "matrix_ids": [
+        "5.1.13"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.12",
+      "matrix_ids": [
+        "5.1.14"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.13",
+      "matrix_ids": [
+        "5.1.15"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.14",
+      "matrix_ids": [
+        "5.1.16"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.15",
+      "matrix_ids": [
+        "5.1.17"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.15.1",
+      "matrix_ids": [
+        "5.1.17.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.1.15.2",
+      "matrix_ids": [
+        "5.1.17.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.2.1",
+      "matrix_ids": [
+        "5.2.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.2.2",
+      "matrix_ids": [
+        "5.2.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.2.3",
+      "matrix_ids": [
+        "5.2.5"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица назначает конкретный URL обучающих материалов, а договор оставляет только неопределённый официальный сайт Банка; C05."
+    },
+    {
+      "contract_id": "5.2.4",
+      "matrix_ids": [
+        "5.2.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.2.5",
+      "matrix_ids": [
+        "5.2.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.2.6",
+      "matrix_ids": [
+        "5.2.8"
+      ],
+      "status": "deviation",
+      "adjudication_note": "При активном QR из перечня каналов передачи расчётной информации исключены Ресурс и QR-код; C09."
+    },
+    {
+      "contract_id": "5.2.7",
+      "matrix_ids": [
+        "5.2.9",
+        "2.6.1.1",
+        "2.6.3.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Предоставление партнёрского QR-кода вместе с установкой терминалов частично покрывает способы подключения QR."
+    },
+    {
+      "contract_id": "5.2.8",
+      "matrix_ids": [
+        "5.2.10"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "5.2.9",
+      "matrix_ids": [],
+      "status": "extra_in_contract"
+    },
+    {
+      "contract_id": "5.2.10",
+      "matrix_ids": [
+        "5.2.12",
+        "2.6.2.1",
+        "2.6.2.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Предоставление QR-API частично покрывает API- и vendor-механизмы подключения QR."
+    },
+    {
+      "contract_id": "6.1",
+      "matrix_ids": [
+        "6.1",
+        "6.7",
+        "6.13"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Платёжный раздел устанавливает только плату за расчёты по операциям и не устанавливает отдельную плату за активное сервисное обслуживание терминалов; C06."
+    },
+    {
+      "contract_id": "6.2",
+      "matrix_ids": [
+        "6.2",
+        "6.8",
+        "6.14"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Общий срок направления УПД частично покрывает специальную сервисную документарную цепочку."
+    },
+    {
+      "contract_id": "6.3",
+      "matrix_ids": [
+        "6.3",
+        "6.9",
+        "6.15"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Общий срок направления акта и счёта частично покрывает специальную сервисную документарную цепочку."
+    },
+    {
+      "contract_id": "6.4",
+      "matrix_ids": [
+        "6.4",
+        "6.5",
+        "6.10",
+        "6.11",
+        "6.16",
+        "6.17"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Оплата после подписания УПД предусмотрена, но обязанность вернуть документ или отказ к установленной дате отсутствует; C14."
+    },
+    {
+      "contract_id": "6.5",
+      "matrix_ids": [
+        "6.6",
+        "6.12",
+        "6.18"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Оплата после акта и счёта частично покрывает специальную сервисную платёжную цепочку."
+    },
+    {
+      "contract_id": "6.6",
+      "matrix_ids": [
+        "6.20"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "6.7",
+      "matrix_ids": [
+        "6.21"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.1",
+      "matrix_ids": [
+        "7.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.2",
+      "matrix_ids": [
+        "7.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Письменное требование является процедурным элементом соответствующей неустойки."
+    },
+    {
+      "contract_id": "7.3",
+      "matrix_ids": [
+        "7.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Лимит ответственности Банка совпадает с лимитом ответственности Банка, а не Предприятия."
+    },
+    {
+      "contract_id": "7.4",
+      "matrix_ids": [
+        "7.2",
+        "7.5",
+        "7.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.5",
+      "matrix_ids": [
+        "7.2",
+        "7.3"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Ответственность Предприятия за непросроченное нарушение предусмотрена, но отсутствуют требуемые размер штрафа и предел; C07."
+    },
+    {
+      "contract_id": "7.5.1",
+      "matrix_ids": [
+        "7.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Пеня Предприятия за просрочку относится к общей ответственности, но не заменяет фиксированный штраф за иной класс нарушения."
+    },
+    {
+      "contract_id": "7.6",
+      "matrix_ids": [
+        "7.4",
+        "7.5",
+        "7.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.6.1",
+      "matrix_ids": [
+        "7.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.6.2",
+      "matrix_ids": [
+        "7.5",
+        "7.6"
+      ],
+      "status": "deviation"
+    },
+    {
+      "contract_id": "7.7",
+      "matrix_ids": [
+        "8.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Освобождение при непреодолимой силе является прямым частичным аналогом общего форс-мажорного освобождения."
+    },
+    {
+      "contract_id": "7.8",
+      "matrix_ids": [
+        "7.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Сохранение обязанности после санкции относится к общему механизму договорной ответственности."
+    },
+    {
+      "contract_id": "7.9",
+      "matrix_ids": [
+        "7.8"
+      ],
+      "status": "deviation",
+      "adjudication_note": "При активном QR из перечня способов оплаты в исключении ответственности Банка исключены SberPay/Плати QR; C09."
+    },
+    {
+      "contract_id": "7.10",
+      "matrix_ids": [
+        "7.9"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.11",
+      "matrix_ids": [
+        "7.10"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.12",
+      "matrix_ids": [
+        "7.11"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.13",
+      "matrix_ids": [
+        "7.12"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.14",
+      "matrix_ids": [
+        "7.15"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.15",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.16",
+      "matrix_ids": [
+        "7.17"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Точный договорный аналог повторяющихся платежей оценивается независимо от product-selector матрицы."
+    },
+    {
+      "contract_id": "8.1",
+      "matrix_ids": [
+        "8.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "8.2",
+      "matrix_ids": [
+        "8.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "9.1",
+      "matrix_ids": [
+        "9.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "9.2",
+      "matrix_ids": [
+        "9.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "9.3",
+      "matrix_ids": [
+        "9.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "10.1",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "10.2",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "10.3",
+      "matrix_ids": [
+        "10.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.1",
+      "matrix_ids": [
+        "11.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.2",
+      "matrix_ids": [
+        "11.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.3",
+      "matrix_ids": [
+        "11.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.4",
+      "matrix_ids": [
+        "11.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.5",
+      "matrix_ids": [
+        "11.5"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.6",
+      "matrix_ids": [
+        "11.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.7",
+      "matrix_ids": [
+        "11.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.8",
+      "matrix_ids": [
+        "11.8"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.9",
+      "matrix_ids": [
+        "11.9"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.10",
+      "matrix_ids": [
+        "11.10"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.11",
+      "matrix_ids": [
+        "11.11"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Матрица назначает конкретный адрес официального сайта Банка, а договор оставляет только неопределённое наименование сайта; C05."
+    },
+    {
+      "contract_id": "11.12",
+      "matrix_ids": [
+        "11.12"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "11.13",
+      "matrix_ids": [
+        "11.13"
+      ],
+      "status": "aligned"
+    }
+  ],
+  "missing_matrix_ids": [
+    "2.6.3.2"
+  ],
+  "excluded_contract_ids": [
+    "1.1",
+    "1.2",
+    "1.3",
+    "1.4",
+    "1.5",
+    "1.6",
+    "1.7",
+    "1.8",
+    "1.9",
+    "1.10",
+    "1.11",
+    "1.12",
+    "1.13",
+    "1.14",
+    "1.15",
+    "1.16",
+    "1.17",
+    "1.18",
+    "1.19",
+    "1.20",
+    "1.21",
+    "1.22",
+    "1.23",
+    "1.24",
+    "1.25",
+    "1.26",
+    "1.27",
+    "1.28",
+    "1.29",
+    "1.30",
+    "1.31",
+    "1.32",
+    "1.33",
+    "1.34",
+    "1.35",
+    "1.36",
+    "1.37",
+    "1.38",
+    "1.39",
+    "1.40",
+    "1.41",
+    "1.42",
+    "1.43",
+    "1.44",
+    "1.45",
+    "1.46",
+    "1.47",
+    "4.2.20"
+  ]
+}

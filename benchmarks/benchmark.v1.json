@@ -5,6 +5,8 @@
     "orientation": "contract",
     "soft_match_rule": "A contract group is correct when predicted matrix_ids intersect the candidate pool of the same gold contract group.",
     "status_rule": "Status belongs to the contract group and is scored independently in every repeated matrix occurrence.",
+    "placeholder_rule": "When a matched matrix requirement contains a concrete value and the contract leaves the corresponding parameter blank, score deviation rather than aligned or missing.",
+    "selector_scope_rule": "Infer selector scope from all operative contract clauses, including currently unmapped candidates. Use direct operative clauses or a coherent cluster of strong semantic analogs; one weak thematic match or future activation option is insufficient.",
     "status": "requires_cross-version_id_audit",
     "sources_are_authoritative_for_aligned_and_mapping": false,
     "reason": "The formatted workbooks contain matrix identifiers from different matrix generations; they remain sources for priority deviation classes but cannot be merged into one mapping benchmark without ID reconciliation."
@@ -19,8 +21,10 @@
       "source": "gold_results/Kavkaz_analiz_formattirovannyi.xlsx",
       "sha256": "cfea8a58c969bc64b9c7d7a7851eda4b7cdccf2e644d84853af3ae63321e42cc",
       "priority_deviations": [
+        {"contract_id": "2.3.5", "matrix_ids": ["2.3.5"], "issue_class": "channel_or_form"},
         {"contract_id": "4.3", "matrix_ids": ["2.1"], "issue_class": "bank_right"},
         {"contract_id": "4.4", "matrix_ids": ["4.2.12", "6.5"], "issue_class": "payment_mechanism"},
+        {"contract_id": "5.1.1", "matrix_ids": ["5.2.3", "5.2.5"], "deviation_matrix_ids": ["5.2.5"], "issue_class": "channel_or_form"},
         {"contract_id": "5.2.6", "matrix_ids": ["5.1.13"], "issue_class": "channel_or_form"},
         {"contract_id": "5.3.15", "matrix_ids": ["4.2.16.3"], "issue_class": "deadline_or_date"},
         {"contract_id": "5.7", "matrix_ids": ["4.2.20.7"], "issue_class": "amount_or_rate"}

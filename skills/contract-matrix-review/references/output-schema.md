@@ -1,82 +1,81 @@
-# Формат результата `contract-matrix-map.v4`
+# Формат результата
 
-Сохранить единственный публикуемый юридический UTF-8 JSON. Служебные артефакты
-harness не являются частью этого формата.
+Запиши один UTF-8 JSON-файл `/outputs/result.json`:
 
 ```json
 {
-  "schema_version": "contract-matrix-map.v4",
-  "completion_status": "complete|complete_with_review",
+  "schema_version": "contract-matrix-map.v6",
   "contract_items": [
     {
-      "contract_id": "<source contract ID>",
-      "contract_text": "Полный текст пункта",
-      "matrix_ids": ["<source matrix ID>"],
-      "status": "aligned|deviation|extra_in_contract|not_applicable|needs_review",
-      "comment": "Проверяемое обоснование с цитатами и дельтой"
+      "contract_id": "4.2",
+      "source_locator": "раздел 4, первое вхождение",
+      "matrix_ids": ["5.1", "5.2"],
+      "status": "deviation",
+      "comment": "Добавлено условие заявления; срок уведомления не раскрыт."
     }
   ],
   "matrix_items": [
     {
-      "matrix_id": "<source matrix ID>",
-      "matrix_text": "Полный текст строки матрицы",
-      "required_type": "mandatory",
+      "matrix_id": "6.4",
       "status": "missing_in_contract",
-      "comment": "Почему требование применимо и почему аналога нет во всём договоре"
-    }
-  ],
-  "review_items": [
-    {
-      "review_id": "review-1",
-      "review_type": "uncertain_mapping|uncertain_applicability",
-      "contract_ids": ["<source contract ID>"],
-      "matrix_ids": ["<source matrix ID>"],
-      "issue": "Что именно нельзя разрешить по источникам",
-      "question_for_lawyer": "Один конкретный вопрос, ответ на который завершит классификацию"
+      "comment": "Обязательный срок перечисления отсутствует во всём договоре."
     }
   ]
 }
 ```
 
-## Инварианты
+## Общие требования
 
-### Верхний уровень
+- Верхний объект содержит только `schema_version`, `contract_items`, `matrix_items`.
+- `schema_version` всегда равен `contract-matrix-map.v6`.
+- Идентификаторы сохраняются точно как в источниках; не исправляй и не синтезируй номера.
+- Для нумерованного пункта внутри приложения используй его собственный номер, а приложение укажи в `source_locator`.
+- Массивы и строки должны быть валидным JSON без Markdown-обрамления.
 
-- Использовать только `schema_version: contract-matrix-map.v4`.
-- Использовать `complete`, если `review_items` пуст.
-- Использовать `complete_with_review`, если `review_items` не пуст.
-- Всегда включать массивы `contract_items`, `matrix_items` и `review_items`.
+## `contract_items`
 
-### `contract_items`
+Обязательные поля каждого элемента:
 
-- Включить каждый собственный номер основного текста договора ровно один раз.
-- Сохранить полный относящийся текст в `contract_text`.
-- Не повторять `contract_id`.
-- Не повторять matrix ID внутри одной строки.
-- Для `aligned` и `deviation` указать хотя бы один matrix ID.
-- Для `extra_in_contract` и `not_applicable` оставить `matrix_ids: []`.
-- Для `needs_review` указать смысловых кандидатов в `matrix_ids` и создать
-  связанный `review_item`.
-- Не использовать `needs_review` для сомнения, которое разрешается чтением
-  доступного текста.
+- `contract_id` — исходный номер или метка пункта договора;
+- `matrix_ids` — массив смысловых аналогов матрицы;
+- `status` — `aligned`, `deviation`, `extra_in_contract`, `not_applicable` или `needs_review`;
+- `comment` — непустой краткий комментарий.
 
-### `matrix_items`
+Каждое исходное вхождение пункта представлено ровно одним объектом и одним
+строковым `status`. Не создавай несколько объектов для одного вхождения ради
+разных mappings или статусов: объедини все аналоги в его `matrix_ids` и выбери
+итоговый статус по policy.
 
-- Включать только подтверждённые `missing_in_contract`.
-- Включать только applicable mandatory-строки.
-- Не включать optional, structural, not-applicable и uncertain-строки.
-- Не включать matrix ID, уже использованный в `contract_items`.
-- Не повторять `matrix_id`.
+Поле `source_locator` можно опустить только для однозначного пункта основного
+текста. Оно обязательно:
 
-### `review_items`
+- у каждого вхождения повторяющегося `contract_id`; значения должны различать
+  все вхождения;
+- у пункта приложения — locator должен называть приложение;
+- у ненумерованного операционного положения — locator должен однозначно
+  указывать его место в источнике.
 
-- Использовать стабильный уникальный `review_id`.
-- `uncertain_mapping` должен ссылаться минимум на один contract ID и один
-  matrix ID.
-- `uncertain_applicability` должен ссылаться минимум на один matrix ID;
-  `contract_ids` может быть пуст.
-- Не помещать matrix ID одновременно в `review_items` и подтверждённые
-  `matrix_items`.
-- Формулировать `issue` как дефицит решения, а не общий пересказ.
-- Формулировать один вопрос, который юрист может разрешить без повторного
-  полного анализа.
+Не объединяй повторяющиеся пункты.
+
+Идентичность записи задаётся исходным вхождением, а не одним номером. Для
+повторяющихся номеров сочетание `contract_id` и `source_locator` должно быть
+уникальным; две записи с одним исходным местом запрещены.
+
+Для нескольких ненумерованных операционных положений одного приложения повторяй точную метку приложения в `contract_id`, а содержание положения различай через `source_locator`. Не добавляй описание к `contract_id` и не создавай синтетический номер.
+
+- Для `aligned` и `deviation` `matrix_ids` не пуст.
+- Для `not_applicable` `matrix_ids` пуст.
+- Для `extra_in_contract` `matrix_ids` пуст: если у смешанного пункта есть хотя бы один смысловой аналог, применяй приоритет статусов из policy.
+- Для `needs_review` укажи известных кандидатов, если они есть.
+
+## `matrix_items`
+
+Публикуй только обязательные применимые строки матрицы, которые не разрешены картой договора, либо действительно требуют внешней проверки.
+
+Поля:
+
+- `matrix_id` — точный идентификатор строки матрицы;
+- `status` — `missing_in_contract` или `needs_review`;
+- `comment` — непустое объяснение.
+
+Один `matrix_id` нельзя одновременно сопоставить в `contract_items` и объявить `missing_in_contract`.

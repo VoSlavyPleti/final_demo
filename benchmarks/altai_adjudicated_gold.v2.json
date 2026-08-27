@@ -1,0 +1,834 @@
+{
+  "schema_version": "contract-review-adjudicated-gold.v2",
+  "document_id": "ALTAI",
+  "sources": {
+    "contract": "altai.txt",
+    "matrix": "inputs/matrix.json",
+    "legal_workbook": "gold_results/altai_transport_analysis_v1.xlsx",
+    "audited_extract": ".run/altai-new-gold.json"
+  },
+  "policy": {
+    "orientation": "contract occurrences",
+    "mapping": "Soft mapping accepts any adjudicated semantic candidate; numbering is ignored.",
+    "status": "Deviation is limited to the lawyer-approved discrepancy set; another mapped operative provision is aligned and an operative provision without an analog is extra.",
+    "placeholder": "A blank is deviation when the corresponding mapped matrix requirement contains a concrete value, including an operative field in an attached form; a blank matching an open matrix field is aligned.",
+    "scope": "Trade acquiring and POS are active. A single optional QR field does not activate QR requirements."
+  },
+  "contract_groups": [
+    {
+      "contract_id": "2.1",
+      "matrix_ids": [
+        "3.1",
+        "3.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Предмет эквайринга совпадает, но аренда смарт-терминала образует дополнительный самостоятельный предмет."
+    },
+    {
+      "contract_id": "2.2",
+      "matrix_ids": [
+        "2.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2.3",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "deviation"
+    },
+    {
+      "contract_id": "3.1.1",
+      "matrix_ids": [
+        "4.1.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Право на консультацию совпадает, но ссылка ведёт к незаполненному телефону Банка в разделе 12."
+    },
+    {
+      "contract_id": "3.2.1",
+      "matrix_ids": [
+        "4.2.1",
+        "3.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "3.2.2",
+      "matrix_ids": [
+        "4.2.2",
+        "4.2.9"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Общая обязанность соблюдать материалы частично покрывает порядок операций, но не раскрывает ответственность за сведения в документах."
+    },
+    {
+      "contract_id": "3.2.3",
+      "matrix_ids": [
+        "4.2.20.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлен запрет самостоятельного ремонта и изменено исключение о передаче оборудования."
+    },
+    {
+      "contract_id": "3.2.4",
+      "matrix_ids": [
+        "4.2.20.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Доступ предоставляется работникам банка вместо обслуживающей компании."
+    },
+    {
+      "contract_id": "3.2.5",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Акт подписывают стороны договора, тогда как матрица требует форму и участие обслуживающей компании."
+    },
+    {
+      "contract_id": "3.2.6",
+      "matrix_ids": [
+        "4.2.20.5"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Немедленное уведомление предусмотрено, но обязательные каналы не указаны."
+    },
+    {
+      "contract_id": "3.2.7",
+      "matrix_ids": [
+        "4.2.20.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлено окончание срока аренды как самостоятельный триггер возврата."
+    },
+    {
+      "contract_id": "3.2.8",
+      "matrix_ids": [
+        "4.2.20.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.1.1",
+      "matrix_ids": [
+        "5.1.1"
+      ],
+      "status": "deviation"
+    },
+    {
+      "contract_id": "4.1.1.1",
+      "matrix_ids": [
+        "5.1.1.2"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.1.1.2",
+      "matrix_ids": [
+        "5.1.1.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.1.2",
+      "matrix_ids": [
+        "5.1.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.1.3",
+      "matrix_ids": [
+        "5.1.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Передача Банком сведений в платёжную систему относится к 5.1.7; это не встречная обязанность Предприятия передать персональные данные в Банк по 4.2.16."
+    },
+    {
+      "contract_id": "4.1.4",
+      "matrix_ids": [
+        "5.1.9"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Дополнительная проверка операций и обращение к банку-эмитенту совпадают; проверка предприятия регулируется отдельной строкой."
+    },
+    {
+      "contract_id": "4.1.5",
+      "matrix_ids": [
+        "5.1.14"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.1.6",
+      "matrix_ids": [
+        "5.1.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Право требовать документы для исполнения законодательства совпадает; документы по операциям регулируются отдельно."
+    },
+    {
+      "contract_id": "4.2.1",
+      "matrix_ids": [
+        "5.2.3",
+        "4.2.20.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Банк проводит первичный инструктаж, тогда как матрица возлагает самостоятельное обучение всех сотрудников на предприятие."
+    },
+    {
+      "contract_id": "4.2.2",
+      "matrix_ids": [
+        "5.2.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4.2.3",
+      "matrix_ids": [
+        "5.2.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Обеспечение терминалов информационными материалами совпадает."
+    },
+    {
+      "contract_id": "4.2.4",
+      "matrix_ids": [
+        "5.2.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Передача принадлежностей и технической документации частично относится к предоставлению подготовленного к эксплуатации терминала, но добавляет состав передаваемого комплекта."
+    },
+    {
+      "contract_id": "4.2.5",
+      "matrix_ids": [
+        "5.2.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Круглосуточная работоспособность и трёхдневная замена совпадают, но добавлен отдельный срок ремонта."
+    },
+    {
+      "contract_id": "4.2.6",
+      "matrix_ids": [
+        "2.2",
+        "3.2",
+        "5.2.8"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Основной двухдневный срок расчёта совпадает, но порядок перечисления при отсутствии электронной сверки не раскрыт."
+    },
+    {
+      "contract_id": "4.2.7",
+      "matrix_ids": [
+        "5.2.8"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Дата получения расчётной информации после электронной сверки совпадает."
+    },
+    {
+      "contract_id": "5.1",
+      "matrix_ids": [
+        "6.1",
+        "6.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Размер комиссии не заполнен; состав и срок ежемесячных документов отличаются."
+    },
+    {
+      "contract_id": "5.2",
+      "matrix_ids": [
+        "6.4",
+        "4.2.12"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Возврат подписанного УПД либо мотивированного отказа до 25-го числа совпадает."
+    },
+    {
+      "contract_id": "5.3",
+      "matrix_ids": [
+        "6.13"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Размер ежемесячной арендной платы за терминал оставлен незаполненным."
+    },
+    {
+      "contract_id": "5.4",
+      "matrix_ids": [
+        "6.14",
+        "6.15"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Для арендной платы изменены срок и комплект направляемых документов."
+    },
+    {
+      "contract_id": "5.5",
+      "matrix_ids": [
+        "6.16",
+        "4.2.12"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Возврат УПД по арендной плате до 25-го числа совпадает."
+    },
+    {
+      "contract_id": "5.6",
+      "matrix_ids": [
+        "6.17",
+        "6.18",
+        "6.5",
+        "6.6",
+        "4.2.12"
+      ],
+      "status": "deviation",
+      "adjudication_note": "Оплата установлена в семь рабочих дней вместо пяти и зависит от полного комплекта документов."
+    },
+    {
+      "contract_id": "5.7",
+      "matrix_ids": [
+        "6.20"
+      ],
+      "status": "aligned",
+      "adjudication_note": "При возврате и реверсе новая плата не взимается, первоначальная не возвращается."
+    },
+    {
+      "contract_id": "5.8",
+      "matrix_ids": [
+        "6.21"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Цена договора оставлена незаполненной."
+    },
+    {
+      "contract_id": "5.9",
+      "matrix_ids": [
+        "6.1",
+        "6.13"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлена оплата только фактически оказанных и принятых услуг в существующем платёжном правоотношении."
+    },
+    {
+      "contract_id": "6.1",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "deviation"
+    },
+    {
+      "contract_id": "6.2",
+      "matrix_ids": [
+        "10.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Общее расторжение по соглашению или закону не раскрывает одностороннее уведомление за 30 дней."
+    },
+    {
+      "contract_id": "6.3",
+      "matrix_ids": [
+        "11.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Письменная форма совпадает, но отсутствует исключение для документов, изменяемых публикацией на сайте банка."
+    },
+    {
+      "contract_id": "6.4",
+      "matrix_ids": [
+        "10.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Взаиморасчёты при расторжении предусмотрены без восемнадцатимесячного периода и специальных оснований."
+    },
+    {
+      "contract_id": "6.5",
+      "matrix_ids": [
+        "4.2.14"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Уведомление установлено в пять рабочих дней и не требует полного комплекта подтверждающих документов."
+    },
+    {
+      "contract_id": "6.6",
+      "matrix_ids": [],
+      "status": "extra_in_contract"
+    },
+    {
+      "contract_id": "7.1",
+      "matrix_ids": [
+        "7.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.2",
+      "matrix_ids": [
+        "7.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Фиксированный штраф 1000 рублей заменяет шкалу, зависящую от цены договора."
+    },
+    {
+      "contract_id": "7.3",
+      "matrix_ids": [
+        "7.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Предел общей суммы штрафов предприятия равен цене договора."
+    },
+    {
+      "contract_id": "7.4",
+      "matrix_ids": [
+        "7.4"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Формула пени и уменьшение базы на исполненный объём совпадают."
+    },
+    {
+      "contract_id": "7.5",
+      "matrix_ids": [
+        "7.5"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Фиксированные 10 процентов заменяют шкалу штрафа по цене договора."
+    },
+    {
+      "contract_id": "7.6",
+      "matrix_ids": [
+        "7.6"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Фиксированные 1000 рублей заменяют шкалу штрафа за нестоимостные нарушения."
+    },
+    {
+      "contract_id": "7.7",
+      "matrix_ids": [
+        "7.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Предел общей суммы штрафов банка равен цене договора."
+    },
+    {
+      "contract_id": "7.8",
+      "matrix_ids": [
+        "7.9"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Освобождение банка от ответственности за задержки не по его вине совпадает."
+    },
+    {
+      "contract_id": "7.9",
+      "matrix_ids": [
+        "7.10"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Освобождение банка за действия третьих лиц совпадает."
+    },
+    {
+      "contract_id": "7.10",
+      "matrix_ids": [
+        "7.11"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Освобождение при расследовании подозрительных операций совпадает."
+    },
+    {
+      "contract_id": "7.11",
+      "matrix_ids": [
+        "7.15"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Ответственность предприятия за действия персонала совпадает."
+    },
+    {
+      "contract_id": "7.12",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "7.13",
+      "matrix_ids": [
+        "7.17"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "8.1",
+      "matrix_ids": [
+        "8.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "8.2",
+      "matrix_ids": [
+        "8.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Срок уведомления совпадает, но обязательный договорный способ направления не указан."
+    },
+    {
+      "contract_id": "9.1",
+      "matrix_ids": [
+        "9.1",
+        "9.2"
+      ],
+      "status": "deviation",
+      "source_locator": "раздел 9, первое вхождение — претензионный порядок"
+    },
+    {
+      "contract_id": "9.2",
+      "matrix_ids": [
+        "2.3.1",
+        "2.3.4",
+        "2.3.7"
+      ],
+      "status": "aligned",
+      "source_locator": "раздел 9, первое вхождение — ответ на претензию",
+      "adjudication_note": "Каналы ответа совпадают частично, но юридическая сила e-mail и момент получения отличаются; срок ответа задан связанным пунктом."
+    },
+    {
+      "contract_id": "9.1",
+      "matrix_ids": [
+        "9.3"
+      ],
+      "status": "aligned",
+      "source_locator": "раздел 9, второе вхождение — передача спора в суд",
+      "adjudication_note": "Общий судебный порядок заменён договорной подсудностью Арбитражному суду Алтайского края."
+    },
+    {
+      "contract_id": "9.2",
+      "matrix_ids": [
+        "9.3"
+      ],
+      "status": "aligned",
+      "source_locator": "раздел 9, второе вхождение — подсудность",
+      "adjudication_note": "Дублируется договорная подсудность вместо общего разрешения споров по законодательству."
+    },
+    {
+      "contract_id": "10.1",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Антикоррупционный запрет распространён на аффилированных лиц, работников и посредников."
+    },
+    {
+      "contract_id": "10.2",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлена обязанность уведомлять о подозрении и передавать материалы в том же антикоррупционном правоотношении."
+    },
+    {
+      "contract_id": "10.3",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлены рассмотрение антикоррупционного уведомления и десятидневный срок ответа в том же правоотношении."
+    },
+    {
+      "contract_id": "10.4",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Добавлены разбирательство, конфиденциальность и защита уведомившей стороны в том же антикоррупционном правоотношении."
+    },
+    {
+      "contract_id": "10.5",
+      "matrix_ids": [
+        "7.16"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Повторно установлены разбирательство, конфиденциальность и защита уведомившей стороны в том же антикоррупционном правоотношении."
+    },
+    {
+      "contract_id": "11.1",
+      "matrix_ids": [
+        "11.1"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Иерархия договора, законодательства и правил платёжных систем совпадает."
+    },
+    {
+      "contract_id": "11.2",
+      "matrix_ids": [
+        "11.2"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Конфиденциальность номеров карт, персональных данных покупателей и сумм операций совпадает."
+    },
+    {
+      "contract_id": "11.3",
+      "matrix_ids": [
+        "11.3"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Перечень сведений совпадает, но отсутствует исключение для передачи данных в платёжную систему МИР."
+    },
+    {
+      "contract_id": "11.5",
+      "matrix_ids": [
+        "2.4",
+        "11.7"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Неотъемлемость приложений совпадает с матрицей."
+    },
+    {
+      "contract_id": "11.6",
+      "matrix_ids": [
+        "11.6",
+        "11.8",
+        "4.2.15"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Заверение о законности деятельности совпадает; специальные обязанности обновления оцениваются отдельно."
+    },
+    {
+      "contract_id": "11.7",
+      "matrix_ids": [
+        "11.9"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Передача прав и обязанностей требует согласования; реорганизация является исключением."
+    },
+    {
+      "contract_id": "11.8",
+      "matrix_ids": [
+        "11.10"
+      ],
+      "status": "aligned",
+      "adjudication_note": "Последствия реорганизации и ликвидации совпадают."
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "плата за расчёты",
+      "matrix_ids": [
+        "6.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "перечисление сумм",
+      "matrix_ids": [
+        "5.2.8"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "оплата комиссии",
+      "matrix_ids": [
+        "6.5",
+        "6.6"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "электронная авторизация",
+      "matrix_ids": [
+        "5.2.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "доставка и пуско-наладка",
+      "matrix_ids": [
+        "5.2.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "характеристики смарт-терминала",
+      "matrix_ids": [],
+      "status": "extra_in_contract"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "безопасность услуги",
+      "matrix_ids": [],
+      "status": "extra_in_contract"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "качество, комплектность и акт передачи",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "работоспособность и ремонт",
+      "matrix_ids": [
+        "5.2.7"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "требования к результатам",
+      "matrix_ids": [],
+      "status": "extra_in_contract"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "место оказания услуг",
+      "matrix_ids": [],
+      "status": "extra_in_contract"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "условия оказания услуг",
+      "matrix_ids": [
+        "5.2.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №1",
+      "source_locator": "сроки оказания услуг и аренды",
+      "matrix_ids": [
+        "10.1"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "1",
+      "source_locator": "Приложение №2, пункт 1 — передача и принятие ККТ",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "2",
+      "source_locator": "Приложение №2, пункт 2 — состояние, документы и отсутствие фискальных накопителей",
+      "matrix_ids": [
+        "5.2.3"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "3",
+      "source_locator": "Приложение №2, пункт 3 — полнота информации и осмотр",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "4",
+      "source_locator": "Приложение №2, пункт 4 — два экземпляра акта",
+      "matrix_ids": [
+        "4.2.20.4"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "1.1",
+      "source_locator": "Приложение №3, оказание услуг в 2023 году",
+      "matrix_ids": [
+        "6.1",
+        "6.13"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "1.2",
+      "source_locator": "Приложение №3, оказание услуг в 2024 году",
+      "matrix_ids": [
+        "6.1",
+        "6.13"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №3",
+      "source_locator": "строка ИТОГО — начальная максимальная цена",
+      "matrix_ids": [
+        "6.21"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "1.1",
+      "source_locator": "Приложение №4, раздел 2 — полнота сведений",
+      "matrix_ids": [
+        "4.2.15"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "1.2",
+      "source_locator": "Приложение №4, раздел 2 — проверка сведений",
+      "matrix_ids": [
+        "5.1.10"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "1.3",
+      "source_locator": "Приложение №4, раздел 2 — заранее данный акцепт",
+      "matrix_ids": [
+        "5.1.3",
+        "4.2.13"
+      ],
+      "status": "aligned"
+    },
+    {
+      "contract_id": "Приложение №4.1",
+      "source_locator": "форма информации о ТСТ",
+      "matrix_ids": [
+        "2.1"
+      ],
+      "status": "aligned"
+    }
+  ],
+  "missing_matrix_ids": [
+    "2.3.2",
+    "2.3.5",
+    "4.2.5",
+    "4.2.6",
+    "4.2.7",
+    "4.2.8",
+    "4.2.10",
+    "4.2.11",
+    "4.2.16",
+    "4.2.16.1",
+    "4.2.16.2",
+    "4.2.16.3",
+    "4.2.18",
+    "4.2.19",
+    "5.1.1.1",
+    "5.1.1.4",
+    "5.1.1.5",
+    "5.1.2",
+    "5.1.4",
+    "5.1.5",
+    "5.1.11"
+  ],
+  "excluded_contract_ids": [
+    "1.1–1.32",
+    "11.4",
+    "11.9",
+    "12 (Реквизиты)"
+  ],
+  "counts": {
+    "operational_contract_groups": 97,
+    "mapped_contract_groups": 92,
+    "aligned": 85,
+    "deviation": 7,
+    "extra_in_contract": 5,
+    "missing_in_contract": 21
+  }
+}
