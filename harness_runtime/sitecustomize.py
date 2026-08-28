@@ -12,8 +12,19 @@ from typing import Any, Callable
 
 _WORKSPACE_VALUE = os.environ.get("DEEPAGENT_WORKSPACE_ROOT")
 _WORKSPACE = Path(_WORKSPACE_VALUE).resolve() if _WORKSPACE_VALUE else None
+_VIRTUAL_ROOTS = (
+    "inputs",
+    "outputs",
+    "skills",
+    "tmp",
+    "large_tool_results",
+    "conversation_history",
+    ".harness_runtime",
+)
 _VIRTUAL_PATH = re.compile(
-    r"^(?:[A-Za-z]:)?[/\\](inputs|outputs|skills)(?:[/\\](.*))?$",
+    r"^(?:[A-Za-z]:)?[/\\]("
+    + "|".join(re.escape(root) for root in _VIRTUAL_ROOTS)
+    + r")(?:[/\\](.*))?$",
     re.IGNORECASE,
 )
 

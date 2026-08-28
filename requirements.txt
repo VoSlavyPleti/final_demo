@@ -4,3 +4,4 @@ langchain-openai==1.2.2
 openai==2.38.0
 python-dotenv==1.2.2
 pytest==9.0.3
+wcmatch==10.1

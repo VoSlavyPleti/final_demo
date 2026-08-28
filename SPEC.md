@@ -149,11 +149,11 @@ OCR и извлечение текста из сканов не входят в 
 ### 5.2. Итоговый артефакт
 
 Единственный пользовательский артефакт запуска — UTF-8 JSON по схеме
-`contract-matrix-map.v5`:
+`contract-matrix-map.v6`:
 
 ```json
 {
-  "schema_version": "contract-matrix-map.v5",
+  "schema_version": "contract-matrix-map.v6",
   "contract_items": [
     {
       "contract_id": "5.2",
@@ -183,22 +183,25 @@ OCR и извлечение текста из сканов не входят в 
 
 | Слой | Ответственность | Основные файлы |
 |---|---|---|
-| CLI и harness | Валидация путей, создание workspace, запуск агента, повторы, публикация результата | `main.py` |
+| CLI и supervisor | Валидация, staging, разделение model retry и полного restart, атомарная публикация | `main.py` |
+| AEF WorkStation | HTTPS-клиент, lifecycle одноразовой сессии и реализация `SandboxBackendProtocol` | `aef_workstation.py` |
 | Модель | Создание совместимого с LangChain chat model, параметры thinking, лимиты и таймауты | `llm.py` |
 | Оркестрационные prompts | Роль, границы, виртуальные пути и формулировка запуска | `prompts/` |
 | Domain skill | Вся юридическая методология сопоставления, статусов, применимости и комментариев | `skills/contract-matrix-review/` |
-| Runtime paths | Привязка виртуальных путей `inputs`, `outputs`, `skills` к изолированному workspace на Windows | `harness_runtime/sitecustomize.py`, `WindowsPowerShellBackend` в `main.py` |
+| Runtime paths | Привязка виртуальных путей к `/workspace` внутри WorkStation; локальный Windows backend — только явный rollback | `harness_runtime/sitecustomize.py`, `aef_workstation.py`, `main.py` |
 | Quality gate | Только структура, схема и внутренние инварианты JSON; без юридической классификации | `quality_gate_failures()` в `main.py` |
 | Benchmarking | Проверенные gold-наборы и расчёт mapping/status/classification-метрик | `benchmarks/`, `gold_results/` |
 | Тесты | Контракты harness, prompts, skill, paths, retry и publication flow | `tests/` |
 
 ### 6.1. Агентный runtime
 
-Harness создаёт одного Deep Agent через `create_deep_agent()`. Он получает
-модель, системный prompt, изолированный shell backend, MemorySaver и domain
-skill. Собственные инструменты или схема специализированных сабагентов в
-проекте не задаются: агент использует стандартные возможности Deep Agents и
-сам выбирает способ выполнения задачи.
+На каждую инфраструктурную попытку harness создаёт новый Deep Agent через
+`create_deep_agent()`. Он получает модель, новый `MemorySaver`, новый thread,
+один экземпляр AEF backend и domain skill из родительского каталога
+`/skills/`. Тот же backend автоматически разделяют главный агент и стандартные
+`general-purpose` subagents. Собственные доменные инструменты или схема
+специализированных сабагентов не задаются: агент использует стандартные
+возможности Deep Agents и сам выбирает способ выполнения задачи.
 
 Юридический matching, оценка применимости и присвоение статусов выполняются
 агентом. Python-код не должен содержать регулярные выражения, таблицы решений
@@ -214,31 +217,53 @@ harness.
 
 ### 6.2. Изолированный workspace
 
-На каждый запуск создаётся временный каталог `contract-review-*` со следующей
-структурой:
+На каждый запуск локально создаётся контрольный staging-каталог
+`contract-review-*`. В каждую AEF-попытку его неизменяемые файлы загружаются в
+новую одноразовую сессию со следующей виртуальной структурой:
 
 ```text
 inputs/contract.txt
 inputs/matrix.json
 skills/contract-matrix-review/
+.harness_runtime/sitecustomize.py
 outputs/working/
 outputs/result.json
-outputs/run-manifest.json
+tmp/
 ```
 
-Backend работает в `virtual_mode=True`. Специальная нормализация путей не даёт
-командам и создаваемым Python-скриптам ошибочно писать в физические каталоги
-вида `C:\outputs`; виртуальные пути разрешаются внутри текущего workspace.
+`AefWorkstationBackend` преобразует любой виртуальный путь `/<path>` в
+`/workspace/<path>` и не раскрывает физический `workspaceRoot` сервиса. Прямые
+`write`, `edit` и `upload` запрещены для `/inputs`, `/skills` и
+`/.harness_runtime`; после каждого `execute` повторно сверяются полный набор
+путей и типов узлов этих каталогов, а для файлов — также SHA-256. Обход дерева
+не имеет серверного ограничения глубины.
+Agent-authored Python получает ограниченное отображение известных виртуальных
+корней через `sitecustomize.py`. Shell в AEF является POSIX и начинает работу в
+`/workspace`.
 
-После успешного прохождения gate `outputs/result.json` копируется в путь,
-указанный через CLI. Успешный workspace удаляется по умолчанию и сохраняется с
-флагом `--keep-workspace`. При ошибке workspace сохраняется для диагностики.
+После gate result, trace и manifest публикуются соседними файлами через
+`os.replace`; manifest публикуется последним. Успешный локальный staging
+удаляется по умолчанию и сохраняется с флагом `--keep-workspace`. При ошибке он
+сохраняется для диагностики, а failed trace и manifest атомарно публикуются
+рядом с целевым output без публикации `result.json`. Удалённая сессия
+завершается независимо от этого флага. S3 persistence и автоматический
+fallback на локальную файловую систему не используются.
 
 ### 6.3. Повторы и quality gate
 
-API-сбои повторяются в том же agent thread с экспоненциальной задержкой.
-Невалидный артефакт исправляется в том же thread с передачей только ошибок
-формата.
+Повторы модели выполняются в том же thread только пока WorkStation остаётся
+здоровой. Для AEF скрытые SDK-retries отключены: повтором управляет harness
+после проверки session health. Перед каждым model call его transport timeout
+ограничивается остатком безопасного TTL; во время streaming deadline
+проверяется на каждом chunk. Отдельный wall-clock watchdog закрывает выделенный
+model HTTP client ровно на deadline, поэтому молчащий stream не может выйти за
+окно попытки. При полном restart создаётся новый model client. Безопасные
+операции чтения могут повторяться с full-jitter backoff.
+Неоднозначный результат произвольного `execute` никогда не повторяется в той же
+сессии: попытка помечается недостоверной, уничтожаются session/backend/agent/
+checkpointer/thread, и весь анализ один раз запускается заново в чистой
+сессии. Невалидный итоговый JSON не получает скрытого repair-прохода и не
+публикуется.
 
 Quality gate проверяет:
 
@@ -256,11 +281,15 @@ Gate намеренно не проверяет юридическую полн�
 
 ### 6.4. Наблюдаемость
 
-`CompactTraceHandler` выводит события начала, завершения и ошибки model/tool
-вызовов с длительностью, но без prompts, текстов договоров и payload
-инструментов. Manifest фиксирует run ID, thread ID, статус, SHA-256 входных
-документов, имя skill и ошибку запуска. Это позволяет связывать метрики с
-конкретными входами и исследовать рост времени выполнения.
+`CompactTraceHandler` и AEF-клиент выводят только allow-listed метаданные
+model/tool/HTTP/lifecycle событий. Документы, prompts, команды, stdout/stderr,
+token, create secret, multipart body и физический `workspaceRoot` не
+логируются. Рядом с результатом публикуются `<name>.trace.jsonl` и
+`<name>.manifest.json`; manifest содержит SHA-256 входов, skill, runtime и
+результата, а также безопасную историю попыток и cleanup.
+Manifest содержит полный отсортированный перечень реально смонтированных
+staging-файлов с размерами и SHA-256. Этот snapshot снимается один раз до
+создания сессии и не пересчитывается из изменяемых исходных путей после запуска.
 
 ## 7. Технологии
 
@@ -277,8 +306,8 @@ Gate намеренно не проверяет юридическую полн�
   токенов и таймаут 300 секунд на модельный вызов.
 - `httpx==0.28.1` для обработки транспортных ошибок и retry policy.
 - `python-dotenv==1.2.2` для локальной конфигурации окружения.
-- PowerShell и кастомный `LocalShellBackend` для выполнения инструментальных
-  команд в Windows.
+- `httpx`-клиент и прямой `SandboxBackendProtocol` для тестового AEF WorkStation;
+  PowerShell backend сохранён только для явно выбранного rollback-профиля.
 - TXT и JSON как рабочие форматы; XLSX используется для исходной юридической
   gold-разметки и ручных калибровочных наборов.
 - `pytest` для автоматических тестов harness и контрактов инструкций.
@@ -296,25 +325,60 @@ python main.py `
   --output demo_results/kaluga-result.json
 ```
 
+По умолчанию используется профиль `aef` и тестовый URL
+`https://workstation.dev0.apps.azwx5oj1.k8s.delta.sbrf.ru`. Token сессии
+возвращает сервис; create secret и корпоративный CA задаются только через
+`AEF_SESSION_CREATE_SECRET` и `AEF_CA_BUNDLE`. HTTPS verification включена,
+redirects и downgrade на HTTP запрещены.
+
+Конфигурация тестового профиля:
+
+```text
+AGENT_BACKEND=aef
+AEF_WORKSTATION_BASE_URL=https://workstation.dev0.apps.azwx5oj1.k8s.delta.sbrf.ru
+AEF_WORKSTATION_ENV=test
+AEF_CA_BUNDLE=<корпоративный CA, если необходим>
+AEF_SESSION_CREATE_SECRET=<из secret store, если проверка включена>
+AEF_IDLE_TIMEOUT_SEC=900
+AEF_ABSOLUTE_TTL_SEC=3600
+AEF_HEARTBEAT_SEC=60
+```
+
+URL и значения TTL имеют показанные test-defaults. Секреты не хранятся в
+репозитории и передаются только через environment/secret store. Фактический
+`expiresAt`, возвращённый WorkStation, имеет приоритет над запрошенным TTL;
+стенд, выдавший absolute TTL меньше запрошенного, считается несовместимым.
+Безопасный deadline попытки наступает за десять минут до `expiresAt`: после
+него новые model/tool операции блокируются, а результат уже выполнявшегося
+вызова не может быть опубликован.
+
 Дополнительные параметры:
 
 - `--keep-workspace` — сохранить временный workspace после успешного запуска;
-- `--max-retries N` — ограничить число транспортных повторов и repair-проходов
-  quality gate; значение по умолчанию — 3.
+- `--max-retries N` — ограничить повторы model API в текущем здоровом thread;
+- `--max-infra-restarts N` — ограничить полные AEF-restart; по умолчанию один;
+- `--backend local` — явный rollback до начала запуска, без автоматического
+  переключения при ошибке AEF.
 
 Полный поток выполнения:
 
-1. Harness проверяет расширения и существование входных файлов.
-2. Создаётся изолированный workspace, в который копируются договор, матрица и
-   актуальная версия domain skill.
-3. Агент читает системный prompt, пользовательскую задачу, весь skill и его
+1. Harness до создания workspace проверяет UTF-8 и непустоту договора,
+   непустой JSON-массив объектов матрицы, frontmatter и обязательные references
+   skill, а также синтаксическую корректность `sitecustomize.py`.
+2. Строится immutable staging manifest с размерами и SHA-256 договора,
+   матрицы, skill и runtime; затем проверяются HTTPS readiness, version и
+   обязательные операции `/openapi.json` тестового WorkStation.
+3. Создаётся новая AEF-сессия без persistence, файлы загружаются и сверяются по
+   SHA-256, запускается heartbeat.
+4. Агент читает системный prompt, пользовательскую задачу, весь skill и его
    обязательные references.
-4. Агент самостоятельно исследует документы, строит полную карту и записывает
+5. Агент самостоятельно исследует документы, строит полную карту и записывает
    `outputs/result.json`.
-5. Механический gate проверяет структуру результата. При ошибке агент получает
-   repair-запрос в том же thread.
-6. Валидный результат публикуется по указанному пользователем пути.
-7. Отдельный evaluator сравнивает результат с проверенным gold-набором.
+6. Harness проверяет здоровье сессии и SHA исходников, скачивает результат и
+   применяет механический gate.
+7. Result и trace публикуются атомарно, manifest — последним; затем сессия
+   завершается.
+8. Отдельный evaluator сравнивает результат с проверенным gold-набором.
 
 ## 9. Контур оценки качества
 
@@ -457,7 +521,7 @@ skill переобучится на текущие XLSX и перестанет 
   `outputs` рабочего пространства.
 - Все текстовые и JSON-файлы обрабатываются в UTF-8.
 - Результат должен быть воспроизводимо читаемым программой и соответствовать
-  `contract-matrix-map.v5`.
+  `contract-matrix-map.v6`.
 - Комментарий должен называть конкретное основание статуса, а не общую оценку.
 - Harness не ограничивает способ исследования документов и использование
   стандартных инструментов агента.
@@ -479,8 +543,12 @@ skill переобучится на текущие XLSX и перестанет 
 - целостность структуры skill и обязательных references;
 - нормализацию виртуальных путей на Windows и защиту от записи в `C:\outputs`;
 - точность механического quality gate;
-- сохранение thread ID при retry и repair;
-- публикацию единственного итогового JSON;
+- сохранение thread ID при model retry и полную замену thread/session при
+  неоднозначном execute;
+- публикацию result/trace/manifest с manifest последним;
+- полный контракт AEF backend, path traversal, защищённые корни, UTF-8,
+  literal grep/glob, heartbeat, TTL, retry/restart и отсутствие секретов в
+  логах;
 - очистку успешного workspace и сохранение failed workspace;
 - корректную конфигурацию модели, лимитов и таймаутов.
 
@@ -524,6 +592,8 @@ skill переобучится на текущие XLSX и перестанет 
 
 - `main.py` — основной CLI, workspace, backend, запуск, retry, gate, manifest и
   публикация результата;
+- `aef_workstation.py` — HTTPS-клиент, session manager, AEF backend и
+  supervisor полных попыток;
 - `llm.py` — конфигурация модели;
 - `prompts/orchestrator-system.md` — стабильный системный контракт агента;
 - `prompts/contract-review-user.md` — задача конкретного запуска;

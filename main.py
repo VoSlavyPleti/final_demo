@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import hashlib
 import json
 import os
@@ -13,6 +14,7 @@ import tempfile
 import threading
 import time
 import uuid
+from typing import Any, Callable
 
 import httpx
 import openai
@@ -22,7 +24,7 @@ from deepagents.backends.protocol import ExecuteResponse
 from langchain_core.callbacks import BaseCallbackHandler
 from langgraph.checkpoint.memory import MemorySaver
 
-from llm import get_llm
+from llm import close_llm, get_llm
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -34,6 +36,15 @@ PYTHON_RUNTIME_ROOT = PROJECT_ROOT / "harness_runtime"
 RESULT_ARTIFACT = Path("outputs/result.json")
 RUN_MANIFEST = Path("outputs/run-manifest.json")
 TRACE_ARTIFACT = Path("outputs/run-trace.jsonl")
+
+AEF_RUNTIME_PROMPT = """
+
+# Среда выполнения
+
+Команды `execute` выполняются POSIX shell внутри изолированной WorkStation.
+Рабочая директория — корень workspace. Используй относительные пути
+`inputs/...`, `outputs/...` и `skills/...`; Windows-пути недоступны.
+""".strip()
 
 
 def _load_prompt(name: str) -> str:
@@ -49,8 +60,54 @@ class CompactTraceHandler(BaseCallbackHandler):
     run_inline = True
     _VIRTUAL_PATH = re.compile(
         r"(?i)(?<![A-Za-z0-9_])(?:[A-Za-z]:)?[/\\]?"
-        r"(?:inputs|outputs|skills|tmp)(?:[/\\][\w.()-]+)+"
+        r"(?:inputs|outputs|skills|tmp|large_tool_results|"
+        r"conversation_history|\.harness_runtime)(?:[/\\][\w.()-]+)+"
     )
+    _EXTERNAL_FIELDS = {
+        "event",
+        "timestamp",
+        "run_id",
+        "attempt_id",
+        "attempt_no",
+        "thread_id",
+        "session_id",
+        "operation_id",
+        "request_id",
+        "trace_id",
+        "span_id",
+        "endpoint_template",
+        "endpoint",
+        "method",
+        "http_status",
+        "service_error_code",
+        "duration_ms",
+        "duration_seconds",
+        "retry",
+        "backoff_seconds",
+        "backoff_ms",
+        "path",
+        "virtual_path",
+        "bytes",
+        "sha256",
+        "command_sha256",
+        "command_hash",
+        "command_length",
+        "timeout_seconds",
+        "timeout_sec",
+        "exit_code",
+        "truncated",
+        "ttl_remaining_seconds",
+        "ttl_remaining_sec",
+        "tainted",
+        "orphan",
+        "restart_reason",
+        "cleanup_reason",
+        "cleanup_status",
+        "gate_status",
+        "publication_status",
+        "status",
+        "error_type",
+    }
 
     def __init__(self, trace_path: Path | None = None) -> None:
         self._started: dict[str, tuple[str, float]] = {}
@@ -100,12 +157,27 @@ class CompactTraceHandler(BaseCallbackHandler):
             "parent_run_id": str(parent_run_id) if parent_run_id else None,
             **fields,
         }
+        self._write_payload(payload)
+
+    def _write_payload(self, payload: dict) -> None:
         serialized = json.dumps(payload, ensure_ascii=True)
         with self._lock:
             print("[trace] " + serialized, flush=True)
             if self._trace_path is not None:
                 with self._trace_path.open("a", encoding="utf-8") as stream:
                     stream.write(serialized + "\n")
+
+    def emit_metadata(self, payload: dict) -> None:
+        """Append allow-listed infrastructure metadata to the same trace."""
+
+        safe = {
+            key: value
+            for key, value in payload.items()
+            if key in self._EXTERNAL_FIELDS
+        }
+        safe.setdefault("event", "aef_event")
+        safe.setdefault("timestamp", round(time.time(), 3))
+        self._write_payload(safe)
 
     def _begin(
         self, kind: str, name: str, run_id, parent_run_id, **fields
@@ -193,6 +265,130 @@ class CompactTraceHandler(BaseCallbackHandler):
 
     def on_tool_error(self, error, *, run_id, parent_run_id=None, **kwargs) -> None:
         self._finish("tool", run_id, parent_run_id, type(error).__name__)
+
+
+class AttemptDeadlineHandler(BaseCallbackHandler):
+    """Prevent new model/tool work after an AEF attempt becomes unsafe."""
+
+    run_inline = True
+    raise_error = True
+
+    def __init__(
+        self,
+        check: Callable[[], Any],
+        *,
+        model: Any | None = None,
+        maximum_model_call_sec: float = 1800.0,
+    ) -> None:
+        self._check = check
+        self._model = model
+        self._maximum_model_call_sec = maximum_model_call_sec
+        self._timeout_lock = threading.Lock()
+        self._watchdogs: dict[
+            str,
+            tuple[threading.Event, threading.Thread],
+        ] = {}
+
+    def _before_model(self, run_id: Any = None) -> None:
+        remaining = self._check()
+        if not isinstance(remaining, (int, float)) or self._model is None:
+            return
+        allowed = min(self._maximum_model_call_sec, max(0.1, float(remaining) - 0.25))
+        timeout = httpx.Timeout(allowed, connect=min(30.0, allowed))
+        # ChatOpenAI and the underlying OpenAI/httpx clients each retain a
+        # timeout. Update all of them before the request; AEF uses zero SDK
+        # retries, so this bounds a silent streaming gap by the session's
+        # remaining safe window. Token/end callbacks enforce the wall clock
+        # while a stream is actively producing chunks.
+        with self._timeout_lock:
+            if hasattr(self._model, "request_timeout"):
+                self._model.request_timeout = allowed
+            if hasattr(self._model, "stream_chunk_timeout"):
+                self._model.stream_chunk_timeout = allowed
+            http_client = getattr(self._model, "http_client", None)
+            if http_client is not None and hasattr(http_client, "timeout"):
+                http_client.timeout = timeout
+            root_client = getattr(self._model, "root_client", None)
+            if root_client is not None and hasattr(root_client, "timeout"):
+                root_client.timeout = timeout
+
+            key = str(run_id) if run_id is not None else uuid.uuid4().hex
+            if key not in self._watchdogs:
+                stop = threading.Event()
+                watchdog = threading.Thread(
+                    target=self._watch_model_call,
+                    args=(key, stop),
+                    name=f"aef-model-deadline-{key}",
+                    daemon=True,
+                )
+                self._watchdogs[key] = (stop, watchdog)
+                watchdog.start()
+
+    def _watch_model_call(self, key: str, stop: threading.Event) -> None:
+        while not stop.is_set():
+            try:
+                remaining = float(self._check())
+            except BaseException:
+                remaining = 0.0
+            if remaining <= 0:
+                break
+            # Polling is local (no HTTP): it notices both a shortened
+            # expiresAt and a heartbeat failure while a stream is silent.
+            if stop.wait(min(0.1, remaining)):
+                return
+        with self._timeout_lock:
+            active = self._watchdogs.pop(key, None)
+        if active is not None and not stop.is_set():
+            # httpx timeouts are per phase, not wall-clock. Closing the model's
+            # dedicated sync client is the hard stop for a silent stream at the
+            # absolute AEF attempt deadline. A fresh model is created if the
+            # supervisor restarts the attempt.
+            try:
+                close_llm(self._model)
+            except BaseException:
+                pass
+
+    def _cancel_timer(self, run_id: Any) -> None:
+        key = str(run_id) if run_id is not None else None
+        if key is None:
+            return
+        with self._timeout_lock:
+            active = self._watchdogs.pop(key, None)
+        if active is not None:
+            active[0].set()
+
+    def cancel_all(self) -> None:
+        with self._timeout_lock:
+            active = tuple(self._watchdogs.values())
+            self._watchdogs.clear()
+        for stop, _watchdog in active:
+            stop.set()
+
+    def on_chat_model_start(self, *args, **kwargs) -> None:
+        del args
+        self._before_model(kwargs.get("run_id"))
+
+    def on_llm_start(self, *args, **kwargs) -> None:
+        del args
+        self._before_model(kwargs.get("run_id"))
+
+    def on_llm_new_token(self, *args, **kwargs) -> None:
+        del args
+        self._check()
+
+    def on_llm_end(self, *args, **kwargs) -> None:
+        del args
+        self._cancel_timer(kwargs.get("run_id"))
+        self._check()
+
+    def on_llm_error(self, *args, **kwargs) -> None:
+        del args
+        self._cancel_timer(kwargs.get("run_id"))
+        self._check()
+
+    def on_tool_start(self, *args, **kwargs) -> None:
+        del args, kwargs
+        self._check()
 
 
 class WindowsPowerShellBackend(LocalShellBackend):
@@ -342,9 +538,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Full contract-matrix mapping JSON",
     )
     parser.add_argument(
+        "--backend",
+        choices=("aef", "local"),
+        default=None,
+        help=(
+            "Execution backend. Default comes from AGENT_BACKEND and is aef; "
+            "local is an explicit pre-run rollback only."
+        ),
+    )
+    parser.add_argument(
         "--keep-workspace",
         action="store_true",
-        help="Preserve the temporary workspace after a successful run",
+        help="Preserve the local control workspace after a successful run",
     )
     parser.add_argument(
         "--max-retries",
@@ -352,7 +557,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=3,
         help="Maximum retries for transient API failures; default: 3",
     )
-    return parser.parse_args(argv)
+    parser.add_argument(
+        "--max-infra-restarts",
+        type=int,
+        default=1,
+        help="Maximum full AEF attempt restarts; default: 1",
+    )
+    args = parser.parse_args(argv)
+    if args.backend is None:
+        configured_backend = os.environ.get("AGENT_BACKEND", "aef").strip().lower()
+        if configured_backend not in {"aef", "local"}:
+            parser.error("AGENT_BACKEND must be either 'aef' or 'local'")
+        args.backend = configured_backend
+    return args
 
 
 def _resolve_input(path: Path, label: str) -> Path:
@@ -370,6 +587,72 @@ def _resolve_json_output(path: Path, label: str) -> Path:
     return resolved
 
 
+def _same_file_or_path(left: Path, right: Path) -> bool:
+    if left == right:
+        return True
+    try:
+        return left.exists() and right.exists() and left.samefile(right)
+    except OSError:
+        return False
+
+
+def _read_nonempty_utf8(path: Path, label: str) -> str:
+    try:
+        text = path.read_bytes().decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{label} must be valid UTF-8: {path}") from exc
+    if not text.strip():
+        raise ValueError(f"{label} must not be empty: {path}")
+    return text
+
+
+def _validate_local_sources(contract: Path, matrix: Path) -> None:
+    """Fail before workspace/session creation when immutable sources are invalid."""
+
+    _read_nonempty_utf8(contract, "Contract")
+    matrix_text = _read_nonempty_utf8(matrix, "Matrix")
+    try:
+        matrix_payload = json.loads(matrix_text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Matrix must be valid JSON: {matrix}") from exc
+    if not isinstance(matrix_payload, list) or not matrix_payload:
+        raise ValueError("Matrix JSON must be a non-empty array")
+    if any(not isinstance(item, dict) for item in matrix_payload):
+        raise ValueError("Every Matrix JSON array item must be an object")
+
+    required_skill_files = (
+        DOMAIN_SKILL_SOURCE / "SKILL.md",
+        DOMAIN_SKILL_SOURCE / "references" / "business-deviation-policy.md",
+        DOMAIN_SKILL_SOURCE / "references" / "business-casebook.md",
+        DOMAIN_SKILL_SOURCE / "references" / "output-schema.md",
+    )
+    for path in required_skill_files:
+        if not path.is_file():
+            raise FileNotFoundError(f"Required agent file does not exist: {path}")
+    skill_text = _read_nonempty_utf8(required_skill_files[0], "Agent skill")
+    if not skill_text.startswith("---\n"):
+        raise ValueError("Agent SKILL.md must start with YAML frontmatter")
+    frontmatter_end = skill_text.find("\n---", 4)
+    if frontmatter_end < 0:
+        raise ValueError("Agent SKILL.md has unterminated YAML frontmatter")
+    frontmatter = skill_text[4:frontmatter_end]
+    for field in ("name", "description"):
+        match = re.search(rf"(?m)^{field}:\s*(.+?)\s*$", frontmatter)
+        if match is None or not match.group(1).strip(" \t\"'"):
+            raise ValueError(f"Agent SKILL.md frontmatter requires non-empty {field}")
+    for path in DOMAIN_SKILL_SOURCE.rglob("*.md"):
+        _read_nonempty_utf8(path, "Agent skill resource")
+
+    runtime = PYTHON_RUNTIME_ROOT / "sitecustomize.py"
+    if not runtime.is_file():
+        raise FileNotFoundError(f"Required Python runtime file does not exist: {runtime}")
+    runtime_text = _read_nonempty_utf8(runtime, "Python runtime")
+    try:
+        compile(runtime_text, str(runtime), "exec")
+    except SyntaxError as exc:
+        raise ValueError(f"Python runtime is not syntactically valid: {runtime}") from exc
+
+
 def prepare_workspace(
     contract: Path, matrix: Path, output: Path
 ) -> tuple[Path, Path, Path, Path]:
@@ -379,13 +662,21 @@ def prepare_workspace(
         raise ValueError(f"Contract must be a .txt file: {contract}")
     if matrix.suffix.lower() != ".json":
         raise ValueError(f"Matrix must be a .json file: {matrix}")
+    _validate_local_sources(contract, matrix)
     output = _resolve_json_output(output, "Output")
-    if output in {contract, matrix}:
-        raise ValueError("Output path must differ from both input paths")
-
-    required_skill = DOMAIN_SKILL_SOURCE / "SKILL.md"
-    if not required_skill.is_file():
-        raise FileNotFoundError(f"Required agent file does not exist: {required_skill}")
+    publication_targets = (
+        output,
+        _published_trace_path(output),
+        _published_manifest_path(output),
+    )
+    if any(
+        _same_file_or_path(target, source)
+        for target in publication_targets
+        for source in (contract, matrix)
+    ):
+        raise ValueError(
+            "Result, trace and manifest paths must differ from both input paths"
+        )
 
     workspace = Path(tempfile.mkdtemp(prefix="contract-review-"))
     (workspace / "inputs").mkdir(parents=True)
@@ -394,6 +685,7 @@ def prepare_workspace(
         DOMAIN_SKILL_SOURCE,
         workspace / "skills" / DOMAIN_SKILL_SOURCE.name,
     )
+    shutil.copytree(PYTHON_RUNTIME_ROOT, workspace / ".harness_runtime")
     mounted_contract = workspace / "inputs" / "contract.txt"
     mounted_matrix = workspace / "inputs" / "matrix.json"
     shutil.copyfile(contract, mounted_contract)
@@ -441,17 +733,19 @@ def build_backend(workspace: Path) -> WindowsPowerShellBackend:
 
 
 def build_agent(
-    backend: WindowsPowerShellBackend,
+    backend: Any,
     *,
     checkpointer=None,
+    system_prompt: str | None = None,
+    model=None,
 ):
-    model = get_llm()
+    selected_model = model or get_llm()
     return create_deep_agent(
         name="contract-matrix-review-agent",
-        model=model,
-        system_prompt=AGENT_SYSTEM_PROMPT,
+        model=selected_model,
+        system_prompt=system_prompt or AGENT_SYSTEM_PROMPT,
         backend=backend,
-        skills=["/skills/contract-matrix-review/"],
+        skills=["/skills/"],
         checkpointer=checkpointer or MemorySaver(),
     )
 
@@ -644,6 +938,7 @@ def _invoke_with_transient_retries(
     *,
     max_retries: int,
     sleep,
+    before_retry: Callable[[], None] | None = None,
 ) -> None:
     retryable_errors = (
         httpx.TransportError,
@@ -664,6 +959,8 @@ def _invoke_with_transient_retries(
                 raise RuntimeError(
                     f"Agent failed after {max_retries} transient retries"
                 ) from exc
+            if before_retry is not None:
+                before_retry()
             delay_seconds = min(2 ** (attempt + 1), 30)
             print(
                 f"Transient failure ({type(exc).__name__}); continuing the "
@@ -679,6 +976,57 @@ def _invoke_with_transient_retries(
             ) from exc
 
 
+def _invoke_agent(
+    workspace: Path,
+    backend: Any,
+    *,
+    max_retries: int = 3,
+    thread_id: str | None = None,
+    sleep=time.sleep,
+    trace_handler: CompactTraceHandler | None = None,
+    before_retry: Callable[[], None] | None = None,
+    attempt_check: Callable[[], Any] | None = None,
+    system_prompt: str | None = None,
+    model=None,
+) -> str:
+    if max_retries < 0:
+        raise ValueError("max_retries must be non-negative")
+
+    agent_kwargs: dict[str, Any] = {"checkpointer": MemorySaver()}
+    if system_prompt is not None:
+        agent_kwargs["system_prompt"] = system_prompt
+    if model is not None:
+        agent_kwargs["model"] = model
+    agent = build_agent(backend, **agent_kwargs)
+    stable_thread_id = thread_id or uuid.uuid4().hex
+    callbacks: list[BaseCallbackHandler] = [
+        trace_handler or CompactTraceHandler(workspace / TRACE_ARTIFACT)
+    ]
+    deadline_handler: AttemptDeadlineHandler | None = None
+    if attempt_check is not None:
+        deadline_handler = AttemptDeadlineHandler(attempt_check, model=model)
+        callbacks.append(deadline_handler)
+    config = {
+        "configurable": {"thread_id": stable_thread_id},
+        "recursion_limit": 10_000,
+        "callbacks": callbacks,
+    }
+
+    try:
+        _invoke_with_transient_retries(
+            agent,
+            RUN_PROMPT,
+            config,
+            max_retries=max_retries,
+            sleep=sleep,
+            before_retry=before_retry,
+        )
+    finally:
+        if deadline_handler is not None:
+            deadline_handler.cancel_all()
+    return stable_thread_id
+
+
 def run_agent(
     workspace: Path,
     *,
@@ -686,22 +1034,11 @@ def run_agent(
     thread_id: str | None = None,
     sleep=time.sleep,
 ) -> None:
-    if max_retries < 0:
-        raise ValueError("max_retries must be non-negative")
-
-    agent = build_agent(build_backend(workspace), checkpointer=MemorySaver())
-    stable_thread_id = thread_id or uuid.uuid4().hex
-    config = {
-        "configurable": {"thread_id": stable_thread_id},
-        "recursion_limit": 10_000,
-        "callbacks": [CompactTraceHandler(workspace / TRACE_ARTIFACT)],
-    }
-
-    _invoke_with_transient_retries(
-        agent,
-        RUN_PROMPT,
-        config,
+    _invoke_agent(
+        workspace,
+        build_backend(workspace),
         max_retries=max_retries,
+        thread_id=thread_id,
         sleep=sleep,
     )
     failures = quality_gate_failures(workspace)
@@ -709,6 +1046,86 @@ def run_agent(
         raise RuntimeError(
             "Agent result failed structural validation: " + "; ".join(failures)
         )
+
+
+def run_agent_aef(
+    workspace: Path,
+    *,
+    settings,
+    run_id: str,
+    staging_snapshot: StagingSnapshot | None = None,
+    max_retries: int = 3,
+    max_infra_restarts: int = 1,
+    attempt_reports_out: list[dict] | None = None,
+) -> tuple[str, list[dict]]:
+    """Run one business analysis with attempt-scoped WorkStation sessions."""
+
+    from aef_workstation import RunSupervisor
+
+    if max_infra_restarts not in {0, 1}:
+        raise ValueError("max_infra_restarts must be 0 or 1")
+
+    trace_handler = CompactTraceHandler(workspace / TRACE_ARTIFACT)
+    supervisor = RunSupervisor(
+        settings,
+        run_id=run_id,
+        event_sink=trace_handler.emit_metadata,
+        max_attempts=max_infra_restarts + 1,
+        expected_manifest=(
+            {
+                entry.virtual_path: (entry.bytes, entry.sha256)
+                for entry in staging_snapshot.entries
+            }
+            if staging_snapshot is not None
+            else None
+        ),
+    )
+    def attempt(manager, backend, thread_id: str, attempt_no: int) -> str:
+        del attempt_no
+        local_result = workspace / RESULT_ARTIFACT
+        local_result.unlink(missing_ok=True)
+        # Model retries belong to _invoke_with_transient_retries, where
+        # session health is checked first. Disable the SDK's hidden retry loop
+        # and create a fresh transport for every clean infrastructure attempt.
+        model = get_llm(max_retries=0)
+        try:
+            manager.ensure_healthy()
+            _invoke_agent(
+                workspace,
+                backend,
+                max_retries=max_retries,
+                thread_id=thread_id,
+                trace_handler=trace_handler,
+                before_retry=manager.ensure_healthy,
+                attempt_check=getattr(
+                    manager,
+                    "check_attempt_active",
+                    manager.ensure_healthy,
+                ),
+                system_prompt=f"{AGENT_SYSTEM_PROMPT}\n\n{AEF_RUNTIME_PROMPT}",
+                model=model,
+            )
+            manager.ensure_healthy()
+            manager.verify_integrity()
+            result_bytes = manager.download_result()
+            manager.ensure_healthy()
+            manager.verify_integrity()
+            _atomic_write_bytes(result_bytes, local_result)
+            failures = quality_gate_failures(workspace)
+            if failures:
+                raise RuntimeError(
+                    "Agent result failed structural validation: " + "; ".join(failures)
+                )
+            return thread_id
+        finally:
+            close_llm(model)
+
+    try:
+        final_thread_id = supervisor.run(workspace, attempt)
+        return final_thread_id, list(supervisor.reports)
+    finally:
+        if attempt_reports_out is not None:
+            attempt_reports_out[:] = supervisor.reports
 
 
 def _sha256(path: Path) -> str:
@@ -719,8 +1136,158 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _tree_sha256(root: Path) -> str:
+    digest = hashlib.sha256()
+    for path in sorted(item for item in root.rglob("*") if item.is_file()):
+        relative = path.relative_to(root).as_posix().encode("utf-8")
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(bytes.fromhex(_sha256(path)))
+    return digest.hexdigest()
+
+
+@dataclass(frozen=True)
+class StagingEntrySnapshot:
+    """Immutable metadata for one file mounted into the agent workspace."""
+
+    virtual_path: str
+    bytes: int
+    sha256: str
+
+    def to_manifest(self) -> dict[str, str | int]:
+        return {
+            "virtual_path": self.virtual_path,
+            "bytes": self.bytes,
+            "sha256": self.sha256,
+        }
+
+
+@dataclass(frozen=True)
+class StagingSnapshot:
+    """Immutable fingerprint of the files actually staged for one run."""
+
+    entries: tuple[StagingEntrySnapshot, ...]
+    contract_sha256: str
+    matrix_sha256: str
+    skill_sha256: str
+    runtime_sha256: str
+
+
+def _snapshot_tree_sha256(
+    entries: tuple[StagingEntrySnapshot, ...],
+    virtual_root: str,
+) -> str:
+    prefix = virtual_root.rstrip("/") + "/"
+    digest = hashlib.sha256()
+    selected = sorted(
+        (entry for entry in entries if entry.virtual_path.startswith(prefix)),
+        key=lambda entry: entry.virtual_path,
+    )
+    for entry in selected:
+        relative = entry.virtual_path.removeprefix(prefix).encode("utf-8")
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        digest.update(bytes.fromhex(entry.sha256))
+    return digest.hexdigest()
+
+
+def _capture_staging_snapshot(workspace: Path) -> StagingSnapshot:
+    """Fingerprint mounted sources once, before an agent can mutate workspace."""
+
+    mounted_roots = (
+        workspace / "inputs",
+        workspace / "skills",
+        workspace / ".harness_runtime",
+    )
+    entries: list[StagingEntrySnapshot] = []
+    for root in mounted_roots:
+        if not root.is_dir():
+            raise FileNotFoundError(f"Mounted staging root is missing: {root}")
+        for path in sorted(item for item in root.rglob("*") if item.is_file()):
+            content = path.read_bytes()
+            entries.append(
+                StagingEntrySnapshot(
+                    virtual_path="/" + path.relative_to(workspace).as_posix(),
+                    bytes=len(content),
+                    sha256=hashlib.sha256(content).hexdigest(),
+                )
+            )
+
+    frozen_entries = tuple(sorted(entries, key=lambda entry: entry.virtual_path))
+    by_path = {entry.virtual_path: entry for entry in frozen_entries}
+    required = {
+        "/inputs/contract.txt",
+        "/inputs/matrix.json",
+        "/skills/contract-matrix-review/SKILL.md",
+        "/.harness_runtime/sitecustomize.py",
+    }
+    missing = sorted(required.difference(by_path))
+    if missing:
+        raise FileNotFoundError(
+            "Mounted staging snapshot is missing required files: "
+            + ", ".join(missing)
+        )
+
+    return StagingSnapshot(
+        entries=frozen_entries,
+        contract_sha256=by_path["/inputs/contract.txt"].sha256,
+        matrix_sha256=by_path["/inputs/matrix.json"].sha256,
+        skill_sha256=_snapshot_tree_sha256(
+            frozen_entries,
+            "/skills/contract-matrix-review",
+        ),
+        runtime_sha256=_snapshot_tree_sha256(
+            frozen_entries,
+            "/.harness_runtime",
+        ),
+    )
+
+
 def _published_trace_path(result_output: Path) -> Path:
     return result_output.with_name(f"{result_output.stem}.trace.jsonl")
+
+
+def _published_manifest_path(result_output: Path) -> Path:
+    return result_output.with_name(f"{result_output.stem}.manifest.json")
+
+
+def _atomic_copy(source: Path, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        shutil.copyfile(source, temporary)
+        with temporary.open("rb+") as stream:
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _atomic_write_bytes(content: bytes, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("wb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _atomic_write_json(payload: dict, target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+            json.dump(payload, stream, ensure_ascii=False, indent=2)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _write_manifest(
@@ -729,58 +1296,134 @@ def _write_manifest(
     run_id: str,
     thread_id: str,
     status: str,
-    contract: Path,
-    matrix: Path,
+    staging_snapshot: StagingSnapshot,
     error: str | None = None,
-) -> None:
+    backend: str = "local",
+    attempts: list[dict] | None = None,
+    environment: str | None = None,
+    endpoint: str | None = None,
+    gate_status: str | None = None,
+    publication_status: str | None = None,
+) -> dict:
+    result_path = workspace / RESULT_ARTIFACT
+    trace_path = workspace / TRACE_ARTIFACT
     payload = {
-        "schema_version": "contract-review-run.v1",
+        "schema_version": "contract-review-run.v2",
         "run_id": run_id,
         "thread_id": thread_id,
         "status": status,
-        "contract_sha256": _sha256(contract),
-        "matrix_sha256": _sha256(matrix),
+        "backend": backend,
+        "environment": environment,
+        "endpoint": endpoint,
+        "contract_sha256": staging_snapshot.contract_sha256,
+        "matrix_sha256": staging_snapshot.matrix_sha256,
         "skill": "contract-matrix-review",
+        "skill_sha256": staging_snapshot.skill_sha256,
+        "runtime_sha256": staging_snapshot.runtime_sha256,
+        "staging_entries": [
+            entry.to_manifest() for entry in staging_snapshot.entries
+        ],
+        "result_sha256": (
+            _sha256(result_path)
+            if status == "complete" and result_path.is_file()
+            else None
+        ),
+        "trace_sha256": _sha256(trace_path) if trace_path.is_file() else None,
+        "attempts": attempts or [],
+        "gate_status": gate_status,
+        "publication_status": publication_status,
         "error": error,
     }
     target = workspace / RUN_MANIFEST
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    _atomic_write_json(payload, target)
+    return payload
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     started = time.perf_counter()
     workspace: Path | None = None
+    result_output: Path | None = None
+    staging_snapshot: StagingSnapshot | None = None
     completed = False
     run_id = uuid.uuid4().hex
     thread_id = uuid.uuid4().hex
+    attempt_reports: list[dict] = []
+    backend_environment: str | None = None
+    backend_endpoint: str | None = None
 
     try:
         if args.max_retries < 0:
             raise ValueError("--max-retries must be non-negative")
+        if args.max_infra_restarts not in {0, 1}:
+            raise ValueError("--max-infra-restarts must be 0 or 1")
         workspace, result_output, contract, matrix = prepare_workspace(
             args.contract,
             args.matrix,
             args.output,
         )
+        staging_snapshot = _capture_staging_snapshot(workspace)
         _write_manifest(
             workspace,
             run_id=run_id,
             thread_id=thread_id,
             status="in_progress",
-            contract=contract,
-            matrix=matrix,
+            staging_snapshot=staging_snapshot,
+            backend=args.backend,
+            environment=backend_environment,
+            endpoint=backend_endpoint,
+            gate_status="pending",
+            publication_status="pending",
         )
 
-        run_agent(
-            workspace,
-            max_retries=args.max_retries,
-            thread_id=thread_id,
-        )
+        if args.backend == "aef":
+            from aef_workstation import AefSettings
+
+            settings = AefSettings.from_env()
+            backend_environment = settings.environment
+            backend_endpoint = settings.base_url
+            _write_manifest(
+                workspace,
+                run_id=run_id,
+                thread_id=thread_id,
+                status="in_progress",
+                staging_snapshot=staging_snapshot,
+                backend="aef",
+                environment=backend_environment,
+                endpoint=backend_endpoint,
+                gate_status="pending",
+                publication_status="pending",
+            )
+            thread_id, attempt_reports = run_agent_aef(
+                workspace,
+                settings=settings,
+                run_id=run_id,
+                staging_snapshot=staging_snapshot,
+                max_retries=args.max_retries,
+                max_infra_restarts=args.max_infra_restarts,
+                attempt_reports_out=attempt_reports,
+            )
+        elif args.backend == "local":
+            local_started = time.monotonic()
+            run_agent(
+                workspace,
+                max_retries=args.max_retries,
+                thread_id=thread_id,
+            )
+            attempt_reports = [
+                {
+                    "attempt_no": 1,
+                    "thread_id": thread_id,
+                    "session_id": None,
+                    "status": "complete",
+                    "restart_reason": None,
+                    "cleanup_status": "complete",
+                    "cleanup_duration_ms": 0,
+                    "duration_ms": round((time.monotonic() - local_started) * 1000),
+                }
+            ]
+        else:
+            raise ValueError(f"Unsupported backend: {args.backend}")
 
         gate_failures = quality_gate_failures(workspace)
         if gate_failures:
@@ -789,31 +1432,53 @@ def main(argv: list[str] | None = None) -> int:
                 + "; ".join(gate_failures)
             )
         result = workspace / RESULT_ARTIFACT
-        shutil.copy2(result, result_output)
         trace_output = _published_trace_path(result_output)
-        shutil.copy2(workspace / TRACE_ARTIFACT, trace_output)
-        _write_manifest(
+        manifest_output = _published_manifest_path(result_output)
+        manifest_payload = _write_manifest(
             workspace,
             run_id=run_id,
             thread_id=thread_id,
             status="complete",
-            contract=contract,
-            matrix=matrix,
+            staging_snapshot=staging_snapshot,
+            backend=args.backend,
+            attempts=attempt_reports,
+            environment=backend_environment,
+            endpoint=backend_endpoint,
+            gate_status="passed",
+            publication_status="complete",
         )
+        _atomic_copy(result, result_output)
+        _atomic_copy(workspace / TRACE_ARTIFACT, trace_output)
+        _atomic_write_json(manifest_payload, manifest_output)
         completed = True
-    except (FileNotFoundError, RuntimeError, ValueError) as exc:
-        if workspace is not None:
+    except (OSError, RuntimeError, ValueError) as exc:
+        if (
+            workspace is not None
+            and result_output is not None
+            and staging_snapshot is not None
+        ):
             try:
-                contract_path = _resolve_input(args.contract, "Contract")
-                matrix_path = _resolve_input(args.matrix, "Matrix")
-                _write_manifest(
+                trace = workspace / TRACE_ARTIFACT
+                trace.parent.mkdir(parents=True, exist_ok=True)
+                trace.touch(exist_ok=True)
+                failed_manifest = _write_manifest(
                     workspace,
                     run_id=run_id,
                     thread_id=thread_id,
                     status="failed",
-                    contract=contract_path,
-                    matrix=matrix_path,
-                    error=f"{type(exc).__name__}: {exc}",
+                    staging_snapshot=staging_snapshot,
+                    error=type(exc).__name__,
+                    backend=args.backend,
+                    attempts=attempt_reports,
+                    environment=backend_environment,
+                    endpoint=backend_endpoint,
+                    gate_status="failed",
+                    publication_status="diagnostics_published",
+                )
+                _atomic_copy(trace, _published_trace_path(result_output))
+                _atomic_write_json(
+                    failed_manifest,
+                    _published_manifest_path(result_output),
                 )
             except Exception:
                 pass
