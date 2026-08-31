@@ -1,4 +1,6 @@
 .run/
+.env
+.venv/
 .artifact_work/
 __pycache__/
 *.py[cod]

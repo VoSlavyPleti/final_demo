@@ -17,14 +17,15 @@ import uuid
 from typing import Any, Callable
 
 import httpx
-import openai
+from gigachat.exceptions import ResponseError as GigaChatResponseError
 from deepagents import create_deep_agent
 from deepagents.backends import LocalShellBackend
 from deepagents.backends.protocol import ExecuteResponse
 from langchain_core.callbacks import BaseCallbackHandler
 from langgraph.checkpoint.memory import MemorySaver
 
-from llm import close_llm, get_llm
+from llm import MODEL_REQUEST_TIMEOUT, close_llm, get_llm, set_llm_timeout
+from console_logging import ConsoleLogHandler
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -278,7 +279,7 @@ class AttemptDeadlineHandler(BaseCallbackHandler):
         check: Callable[[], Any],
         *,
         model: Any | None = None,
-        maximum_model_call_sec: float = 1800.0,
+        maximum_model_call_sec: float = MODEL_REQUEST_TIMEOUT,
     ) -> None:
         self._check = check
         self._model = model
@@ -294,23 +295,10 @@ class AttemptDeadlineHandler(BaseCallbackHandler):
         if not isinstance(remaining, (int, float)) or self._model is None:
             return
         allowed = min(self._maximum_model_call_sec, max(0.1, float(remaining) - 0.25))
-        timeout = httpx.Timeout(allowed, connect=min(30.0, allowed))
-        # ChatOpenAI and the underlying OpenAI/httpx clients each retain a
-        # timeout. Update all of them before the request; AEF uses zero SDK
-        # retries, so this bounds a silent streaming gap by the session's
-        # remaining safe window. Token/end callbacks enforce the wall clock
-        # while a stream is actively producing chunks.
+        # Bound the GigaChat SDK/transport by the session's remaining window.
+        # The watchdog also observes shortened deadlines during silent calls.
         with self._timeout_lock:
-            if hasattr(self._model, "request_timeout"):
-                self._model.request_timeout = allowed
-            if hasattr(self._model, "stream_chunk_timeout"):
-                self._model.stream_chunk_timeout = allowed
-            http_client = getattr(self._model, "http_client", None)
-            if http_client is not None and hasattr(http_client, "timeout"):
-                http_client.timeout = timeout
-            root_client = getattr(self._model, "root_client", None)
-            if root_client is not None and hasattr(root_client, "timeout"):
-                root_client.timeout = timeout
+            set_llm_timeout(self._model, allowed)
 
             key = str(run_id) if run_id is not None else uuid.uuid4().hex
             if key not in self._watchdogs:
@@ -529,13 +517,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the autonomous contract-matrix Deep Agent harness."
     )
-    parser.add_argument("--contract", type=Path, required=True, help="Path to TXT")
-    parser.add_argument("--matrix", type=Path, required=True, help="Path to JSON")
+    parser.add_argument("--contract", type=Path, help="TXT path; default: AGENT_CONTRACT_PATH")
+    parser.add_argument("--matrix", type=Path, help="JSON path; default: AGENT_MATRIX_PATH")
     parser.add_argument(
         "--output",
         type=Path,
-        required=True,
-        help="Full contract-matrix mapping JSON",
+        help="Full mapping JSON; default: AGENT_OUTPUT_PATH",
     )
     parser.add_argument(
         "--backend",
@@ -545,6 +532,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Execution backend. Default comes from AGENT_BACKEND and is aef; "
             "local is an explicit pre-run rollback only."
         ),
+    )
+    parser.add_argument(
+        "--console-log",
+        choices=("full", "compact"),
+        help="Console content logging; default: AGENT_CONSOLE_LOG or full",
     )
     parser.add_argument(
         "--keep-workspace",
@@ -564,6 +556,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Maximum full AEF attempt restarts; default: 1",
     )
     args = parser.parse_args(argv)
+    for name in ("contract", "matrix", "output"):
+        if getattr(args, name) is None:
+            variable = f"AGENT_{name.upper()}_PATH"
+            value = os.environ.get(variable, "").strip()
+            if not value:
+                parser.error(f"Provide --{name} or set {variable} in .env")
+            path = Path(value).expanduser()
+            # Environment paths are stable regardless of the launch directory.
+            # Explicit relative CLI paths retain normal cwd-relative semantics.
+            setattr(args, name, path if path.is_absolute() else PROJECT_ROOT / path)
+    if args.console_log is None:
+        args.console_log = os.environ.get("AGENT_CONSOLE_LOG", "full").strip().lower()
+        if args.console_log not in {"full", "compact"}:
+            parser.error("AGENT_CONSOLE_LOG must be either 'full' or 'compact'")
     if args.backend is None:
         configured_backend = os.environ.get("AGENT_BACKEND", "aef").strip().lower()
         if configured_backend not in {"aef", "local"}:
@@ -940,13 +946,6 @@ def _invoke_with_transient_retries(
     sleep,
     before_retry: Callable[[], None] | None = None,
 ) -> None:
-    retryable_errors = (
-        httpx.TransportError,
-        openai.APIConnectionError,
-        openai.APITimeoutError,
-        openai.InternalServerError,
-        openai.RateLimitError,
-    )
     for attempt in range(max_retries + 1):
         try:
             agent.invoke(
@@ -954,11 +953,18 @@ def _invoke_with_transient_retries(
                 config=config,
             )
             return
-        except retryable_errors as exc:
+        except (httpx.TransportError, GigaChatResponseError) as exc:
+            if isinstance(exc, GigaChatResponseError) and exc.status_code not in (
+                408, 429, 500, 502, 503, 504,
+            ):
+                # SDK exception strings contain raw headers/body; do not log them.
+                raise RuntimeError(
+                    f"Agent API request failed with status {exc.status_code}"
+                ) from None
             if attempt >= max_retries:
                 raise RuntimeError(
                     f"Agent failed after {max_retries} transient retries"
-                ) from exc
+                ) from None
             if before_retry is not None:
                 before_retry()
             delay_seconds = min(2 ** (attempt + 1), 30)
@@ -970,10 +976,6 @@ def _invoke_with_transient_retries(
                 flush=True,
             )
             sleep(delay_seconds)
-        except openai.APIStatusError as exc:
-            raise RuntimeError(
-                f"Agent API request failed with status {exc.status_code}: {exc.message}"
-            ) from exc
 
 
 def _invoke_agent(
@@ -988,6 +990,7 @@ def _invoke_agent(
     attempt_check: Callable[[], Any] | None = None,
     system_prompt: str | None = None,
     model=None,
+    console_log: str = "full",
 ) -> str:
     if max_retries < 0:
         raise ValueError("max_retries must be non-negative")
@@ -1002,6 +1005,10 @@ def _invoke_agent(
     callbacks: list[BaseCallbackHandler] = [
         trace_handler or CompactTraceHandler(workspace / TRACE_ARTIFACT)
     ]
+    if console_log not in {"full", "compact"}:
+        raise ValueError("console_log must be either 'full' or 'compact'")
+    if console_log == "full":
+        callbacks.append(ConsoleLogHandler())
     deadline_handler: AttemptDeadlineHandler | None = None
     if attempt_check is not None:
         deadline_handler = AttemptDeadlineHandler(attempt_check, model=model)
@@ -1033,6 +1040,7 @@ def run_agent(
     max_retries: int = 3,
     thread_id: str | None = None,
     sleep=time.sleep,
+    console_log: str = "full",
 ) -> None:
     _invoke_agent(
         workspace,
@@ -1040,6 +1048,7 @@ def run_agent(
         max_retries=max_retries,
         thread_id=thread_id,
         sleep=sleep,
+        console_log=console_log,
     )
     failures = quality_gate_failures(workspace)
     if failures:
@@ -1057,6 +1066,7 @@ def run_agent_aef(
     max_retries: int = 3,
     max_infra_restarts: int = 1,
     attempt_reports_out: list[dict] | None = None,
+    console_log: str = "full",
 ) -> tuple[str, list[dict]]:
     """Run one business analysis with attempt-scoped WorkStation sessions."""
 
@@ -1104,6 +1114,7 @@ def run_agent_aef(
                 ),
                 system_prompt=f"{AGENT_SYSTEM_PROMPT}\n\n{AEF_RUNTIME_PROMPT}",
                 model=model,
+                console_log=console_log,
             )
             manager.ensure_healthy()
             manager.verify_integrity()
@@ -1340,6 +1351,10 @@ def _write_manifest(
 
 
 def main(argv: list[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
     args = parse_args(argv)
     started = time.perf_counter()
     workspace: Path | None = None
@@ -1362,6 +1377,14 @@ def main(argv: list[str] | None = None) -> int:
             args.matrix,
             args.output,
         )
+        print(
+            f"[agent] backend={args.backend} console_log={args.console_log}\n"
+            f"[agent] contract={contract}\n[agent] matrix={matrix}\n"
+            f"[agent] output={result_output}",
+            flush=True,
+        )
+        if args.console_log == "full":
+            print("[agent] Full console log includes confidential document content.", flush=True)
         staging_snapshot = _capture_staging_snapshot(workspace)
         _write_manifest(
             workspace,
@@ -1402,6 +1425,7 @@ def main(argv: list[str] | None = None) -> int:
                 max_retries=args.max_retries,
                 max_infra_restarts=args.max_infra_restarts,
                 attempt_reports_out=attempt_reports,
+                console_log=args.console_log,
             )
         elif args.backend == "local":
             local_started = time.monotonic()
@@ -1409,6 +1433,7 @@ def main(argv: list[str] | None = None) -> int:
                 workspace,
                 max_retries=args.max_retries,
                 thread_id=thread_id,
+                console_log=args.console_log,
             )
             attempt_reports = [
                 {

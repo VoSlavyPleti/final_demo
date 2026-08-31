@@ -159,6 +159,77 @@ def test_invalid_backend_environment_cannot_fall_back_to_local(
         )
 
 
+def test_paths_from_environment_are_project_relative(monkeypatch, tmp_path):
+    monkeypatch.setattr(main, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setenv("AGENT_CONTRACT_PATH", "данные/договор.txt")
+    monkeypatch.setenv("AGENT_MATRIX_PATH", "данные/matrix.json")
+    monkeypatch.setenv("AGENT_OUTPUT_PATH", "результат/result.json")
+    monkeypatch.setenv("AGENT_CONSOLE_LOG", "full")
+    monkeypatch.setenv("AGENT_BACKEND", "aef")
+    args = main.parse_args([])
+    assert args.contract == tmp_path / "данные/договор.txt"
+    assert args.matrix == tmp_path / "данные/matrix.json"
+    assert args.output == tmp_path / "результат/result.json"
+    assert args.console_log == "full"
+
+
+def test_cli_paths_and_log_mode_override_environment(monkeypatch):
+    for key in ("CONTRACT", "MATRIX", "OUTPUT"):
+        monkeypatch.setenv(f"AGENT_{key}_PATH", "ignore-this")
+    monkeypatch.setenv("AGENT_CONSOLE_LOG", "typo")
+    args = main.parse_args([
+        "--contract", "selected.txt", "--matrix", "matrix.json", "--output", "out.json",
+        "--console-log", "compact",
+    ])
+    assert args.contract == Path("selected.txt")
+    assert args.matrix == Path("matrix.json")
+    assert args.output == Path("out.json")
+    assert args.console_log == "compact"
+
+
+def test_missing_path_has_actionable_env_error(monkeypatch, capsys):
+    monkeypatch.delenv("AGENT_CONTRACT_PATH", raising=False)
+    with pytest.raises(SystemExit):
+        main.parse_args([])
+    assert "AGENT_CONTRACT_PATH" in capsys.readouterr().err
+
+
+def test_invalid_console_mode_is_not_silently_ignored(monkeypatch):
+    monkeypatch.setenv("AGENT_CONSOLE_LOG", "typo")
+    with pytest.raises(SystemExit):
+        main.parse_args(["--contract", "a.txt", "--matrix", "b.json", "--output", "c.json"])
+
+
+@pytest.mark.parametrize("mode", ["full", "compact"])
+def test_console_callback_is_attached_to_invocation(monkeypatch, tmp_path, mode):
+    seen = []
+    class Agent:
+        def invoke(self, payload, config):
+            seen.extend(config["callbacks"])
+    monkeypatch.setattr(main, "build_agent", lambda *args, **kwargs: Agent())
+    main._invoke_agent(tmp_path, object(), console_log=mode)
+    assert any(isinstance(item, main.CompactTraceHandler) for item in seen)
+    assert any(isinstance(item, main.ConsoleLogHandler) for item in seen) == (mode == "full")
+
+
+def test_main_runs_with_environment_paths_only(monkeypatch, tmp_path):
+    contract, matrix = _inputs(tmp_path)
+    output = tmp_path / "out/result.json"
+    for key, value in (("CONTRACT", contract), ("MATRIX", matrix), ("OUTPUT", output)):
+        monkeypatch.setenv(f"AGENT_{key}_PATH", str(value))
+    monkeypatch.setenv("AGENT_BACKEND", "local")
+    monkeypatch.setenv("AGENT_CONSOLE_LOG", "compact")
+
+    def run(workspace, **kwargs):
+        assert kwargs["console_log"] == "compact"
+        _write_result(workspace)
+        (workspace / main.TRACE_ARTIFACT).write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(main, "run_agent", run)
+    assert main.main([]) == 0
+    assert output.is_file()
+
+
 def test_prepare_workspace_rejects_derived_artifact_aliasing_input(
     tmp_path: Path,
 ) -> None:
@@ -599,10 +670,8 @@ def test_run_agent_retries_transient_failure_in_same_thread(
         def invoke(self, payload, config):
             self.calls.append((payload, config))
             if len(self.calls) == 1:
-                request = httpx.Request("POST", "https://example.invalid")
-                response = httpx.Response(429, request=request)
-                raise main.openai.RateLimitError(
-                    "retry", response=response, body=None
+                raise main.GigaChatResponseError(
+                    "https://example.invalid", 429, b"retry", httpx.Headers()
                 )
             _write_result(tmp_path)
 
@@ -675,22 +744,61 @@ def test_aef_attempt_loss_is_not_treated_as_model_retry() -> None:
     assert agent.calls == 1
 
 
+@pytest.mark.parametrize("status", [408, 429, 500, 502, 503, 504])
+def test_gigachat_transient_status_requires_healthy_session(status):
+    events = []
+
+    class Agent:
+        calls = 0
+
+        def invoke(self, payload, config):
+            self.calls += 1
+            events.append("invoke")
+            if self.calls == 1:
+                raise main.GigaChatResponseError("https://example.invalid", status, b"", None)
+
+    main._invoke_with_transient_retries(
+        Agent(), "task", {}, max_retries=1,
+        before_retry=lambda: events.append("health"),
+        sleep=lambda _: events.append("sleep"),
+    )
+    assert events == ["invoke", "health", "sleep", "invoke"]
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 404, 413, 422])
+def test_gigachat_permanent_status_is_not_retried_or_logged_raw(status):
+    import traceback
+
+    class Agent:
+        calls = 0
+
+        def invoke(self, payload, config):
+            self.calls += 1
+            raise main.GigaChatResponseError(
+                "https://example.invalid", status, b"sensitive response",
+                httpx.Headers({"x-secret": "sensitive header"}),
+            )
+
+    agent = Agent()
+    with pytest.raises(RuntimeError, match=f"status {status}") as error:
+        main._invoke_with_transient_retries(
+            agent, "task", {}, max_retries=3, sleep=lambda _: None,
+        )
+    assert agent.calls == 1
+    formatted = "".join(traceback.format_exception(error.value))
+    assert "sensitive response" not in formatted
+    assert "sensitive header" not in formatted
+
+
 def test_attempt_deadline_bounds_model_transport_and_checks_stream_tokens() -> None:
     from aef_workstation import AefAttemptLost
 
     closed = threading.Event()
 
-    class Client:
-        timeout = None
-
+    class Client(httpx.Client):
         def close(self) -> None:
+            super().close()
             closed.set()
-
-    class Model:
-        request_timeout = 1800.0
-        stream_chunk_timeout = 1800.0
-        http_client = Client()
-        root_client = Client()
 
     deadline = time.monotonic() + 12.0
 
@@ -700,13 +808,15 @@ def test_attempt_deadline_bounds_model_transport_and_checks_stream_tokens() -> N
             raise AefAttemptLost("safe deadline reached")
         return remaining
 
-    model = Model()
+    from langchain_gigachat import GigaChat
+
+    model = GigaChat(model="glm-5.2", timeout=300.0)
+    model._client._client_instance = Client(transport=httpx.MockTransport(lambda r: None))
     handler = main.AttemptDeadlineHandler(check, model=model)
     handler.on_chat_model_start(run_id="first")
-    assert 11.5 < model.request_timeout < 12.0
-    assert model.stream_chunk_timeout == model.request_timeout
-    assert model.http_client.timeout.read == model.request_timeout
-    assert model.root_client.timeout.read == model.request_timeout
+    assert 11.5 < model.timeout < 12.0
+    assert model._client._settings.timeout == model.timeout
+    assert model._client._client.timeout.read == model.timeout
 
     # The heartbeat may shorten expiresAt while a stream emits no chunks.
     # The active watchdog must observe the new deadline, not the initial one.

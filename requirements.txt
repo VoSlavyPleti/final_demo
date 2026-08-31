@@ -1,7 +1,8 @@
 deepagents==0.6.3
 httpx==0.28.1
-langchain-openai==1.2.2
-openai==2.38.0
+langchain-gigachat==0.5.1
+gigachat==0.2.3
+pydantic-settings==2.15.0
 python-dotenv==1.2.2
 pytest==9.0.3
 wcmatch==10.1
